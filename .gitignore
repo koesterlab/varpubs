@@ -2,4 +2,7 @@
 # pixi environments
 .pixi
 *.egg-info
-pixi.lock
+pixi.lockvenv/
+output_pubmed_terms.txt
+output_pubmed_terms.txt
+venv/
