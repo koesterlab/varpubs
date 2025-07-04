@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Iterable
 import sqlalchemy
-from sqlmodel import Field, SQLModel, Session, Relationship
+from sqlmodel import Field, SQLModel, Session, Integer
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from Bio import Entrez
 
 # New table: PMIDs -> Article metadata
 class PubmedArticle(SQLModel, table=True):
-    pmid: int = Field(primary_key=True, nullable=False)
+    pmid: int = Field(Integer, primary_key=True, nullable=False)
     title: str
     abstract: str
     authors: str
