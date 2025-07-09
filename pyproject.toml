@@ -33,3 +33,6 @@ pytest = "*"
 
 [tool.pixi.environments]
 dev = { features = ["dev"] }
+
+[tool.pixi.dependencies]
+bzip2 = ">=1.0.8,<2"
