@@ -24,8 +24,8 @@ def get_hgvsp_index(vcf: VCF) -> int:
                 fields = [f.strip() for f in fields_str.split("|")]
                 try:
                     return fields.index("HGVS.p")
-                except ValueError:
-                    raise RuntimeError("HGVS.p not found in ANN header")
+                except ValueError as e:
+                    raise RuntimeError("HGVS.p not found in ANN header") from e
     raise RuntimeError("ANN field not found in VCF header")
 
 

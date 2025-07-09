@@ -151,22 +151,33 @@ class PubmedDB:
                         )
                     ).first()
                     if not article_exists:
-                        fetch = Entrez.efetch(
-                            db="pubmed", id=str(pmid), rettype="medline", retmode="xml"
-                        )
-                        article_data = Entrez.read(fetch)
-                        pubmed_articles = article_data.get("PubmedArticle", [])
-                        if not pubmed_articles:
-                            logger.warning(f"No PubmedArticle found for PMID {pmid}")
+                        try:
+                            fetch = Entrez.efetch(
+                                db="pubmed",
+                                id=str(pmid),
+                                rettype="medline",
+                                retmode="xml",
+                            )
+                            article_data = Entrez.read(fetch)
+                            pubmed_articles = article_data.get("PubmedArticle", [])
+                            if not pubmed_articles:
+                                logger.warning(
+                                    f"No PubmedArticle found for PMID {pmid}"
+                                )
+                                continue
+                            article = (
+                                pubmed_articles[0]
+                                .get("MedlineCitation", {})
+                                .get("Article", {})
+                            )
+                            parsed = self.parse_article(article, pmid)
+                            if parsed:
+                                session.add(parsed)
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to fetch article for PMID {pmid}: {e}"
+                            )
                             continue
-                        article = (
-                            pubmed_articles[0]
-                            .get("MedlineCitation", {})
-                            .get("Article", {})
-                        )
-                        parsed = self.parse_article(article, pmid)
-                        if parsed:
-                            session.add(parsed)
 
                     # Store the mapping term → pmid with the exact searched term
                     session.add(TermToPMID(term=term, pmid=pmid, searched_with=sterm))
@@ -229,8 +240,8 @@ class PubmedDB:
                 eloc = article.get("ELocationID", [{}])
                 if isinstance(eloc, list) and eloc and isinstance(eloc[0], dict):
                     doi = eloc[0].get("#text", "")
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"DOI parse failed for PMID {pmid}: {e}")
 
             return PubmedArticle(
                 pmid=pmid,
