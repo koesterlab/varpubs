@@ -2,30 +2,31 @@ import re
 from cyvcf2 import VCF
 
 
-def get_hgvsp_index(vcf: VCF) -> int:
+def get_annotation_field_index(vcf: VCF, field: str) -> int:
     """
-    Finds the index of the 'HGVS.p' field in the ANN (annotation) column of the VCF header.
+    Retrieves the index of a specified field (e.g., 'HGVS.p', 'Gene_Name') from the ANN column in the VCF header.
 
     Args:
         vcf (VCF): A parsed VCF object from cyvcf2.
+        field (str): The desired annotation field to find in the ANN description.
 
     Returns:
-        int: The index position of the 'HGVS.p' field in ANN entries.
+        int: The index of the given annotation field.
 
     Raises:
-        RuntimeError: If 'ANN' or 'HGVS.p' is not found in the VCF header.
+        RuntimeError: If 'ANN' or the specified field is not found.
     """
     for rec in vcf.header_iter():
         info = rec.info()
         if info.get("ID") == "ANN":
             desc = info.get("Description", "")
-            if "HGVS.p" in desc:
+            if field in desc:
                 fields_str = desc.split("': '")[-1].rstrip("'")
                 fields = [f.strip() for f in fields_str.split("|")]
                 try:
-                    return fields.index("HGVS.p")
+                    return fields.index(field)
                 except ValueError as e:
-                    raise RuntimeError("HGVS.p not found in ANN header") from e
+                    raise RuntimeError(f"{field} not found in ANN header") from e
     raise RuntimeError("ANN field not found in VCF header")
 
 
@@ -44,8 +45,8 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
         list[str]: A sorted list of unique variant terms to be searched in PubMed.
     """
     vcf = VCF(vcf_path)
-    hgvsp_index = get_hgvsp_index(vcf)
-    gene_index = 3  # Fixed index for gene symbol in ANN field
+    hgvsp_index = get_annotation_field_index(vcf, "HGVS.p")
+    gene_index = get_annotation_field_index(vcf, "Gene_Name")
     term_set = set()
 
     for record in vcf:
