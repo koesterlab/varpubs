@@ -18,7 +18,6 @@ class PubmedArticle(SQLModel, table=True):
     Represents a PubMed article record in the database.
     Stores metadata such as title, abstract, authors, journal, publication date, and DOI.
     """
-
     pmid: int = Field(Integer, primary_key=True, nullable=False)
     title: str
     abstract: str
@@ -31,15 +30,22 @@ class PubmedArticle(SQLModel, table=True):
 class TermToPMID(SQLModel, table=True):
     """
     Maps a searched variant term (HGVS.p) to PubMed article PMIDs.
-    Stores which search term (searched_with) resulted in which article for a given term.
-    """
+    
+    This table captures which search term (e.g., "KRAS p.G12D") led to which PubMed article.
+    It is designed with a composite primary key (term, pmid, gene) to prevent duplicate entries 
+    and to reflect the fact that a single term may map to multiple articles and vice versa.
 
+    Attributes:
+        term (str): The HGVS.p variant term used in the PubMed query.
+        pmid (int): PubMed ID of the retrieved article.
+        gene (str): Gene name parsed from the variant (e.g., "KRAS").
+    """
     term: str = Field(nullable=False)
     pmid: int = Field(Integer, nullable=False)
-    searched_with: str = Field(nullable=False)
+    gene: str = Field(nullable=False)
 
     # Composite primary key to prevent duplicates
-    __table_args__ = (sqlalchemy.PrimaryKeyConstraint("term", "pmid", "searched_with"),)
+    __table_args__ = (sqlalchemy.PrimaryKeyConstraint("term", "pmid", "gene"),)
 
 
 @dataclass
@@ -48,7 +54,6 @@ class PubmedDB:
     Class responsible for building and managing a local DuckDB database
     that maps HGVS.p variant annotations to PubMed articles.
     """
-
     path: Path
     vcf_paths: Iterable[Path]
     email: str
@@ -108,82 +113,75 @@ class PubmedDB:
         For a given variant term, searches PubMed and stores the article metadata
         and the mapping (term → pmid) into the database.
 
-        Args:
-            term (str): Full variant term like "KRAS p.Gly12Cys"
-            session (Session): SQLModel session for committing to the DB.
+        This method performs the following:
+        - Queries PubMed using the variant term.
+        - Parses the gene name from the term (e.g., "KRAS" from "KRAS p.G12D").
+        - Checks if the mapping (term, pmid, gene) already exists in the TermToPMID table.
+        - If the article corresponding to a PMID is not already stored in PubmedArticle,
+        fetches metadata and stores it.
+        - Saves the term-to-article mapping in TermToPMID for traceability.
         """
-        search_terms = [term]  # The full term will be queried
-        match = re.match(r"(\w+)\sp\.\D+(\d+)", term)
-        if match:
-            # Also add short form like "KRAS G12"
-            gene, pos = match.group(1), match.group(2)
-            search_terms.append(f"{gene} G{pos}")
+        logger.info(f"Searching PubMed for: {term}")
+        try:
+            handle = Entrez.esearch(db="pubmed", term=term, retmax=3)
+            record = Entrez.read(handle)
+            ids = record.get("IdList", [])
+            if not ids:
+                logger.info(f"No PubMed results for: {term}")
+                return
 
-        for sterm in search_terms:
-            logger.info(f"Searching PubMed for: {sterm}")
-            try:
-                handle = Entrez.esearch(db="pubmed", term=sterm, retmax=3)
-                record = Entrez.read(handle)
-                ids = record.get("IdList", [])
-                if not ids:
-                    logger.info(f"No PubMed results for: {sterm}")
+            match = re.match(r"(\w+)\sp\.", term)
+            gene = match.group(1) if match else "UNKNOWN"
+
+            for pmid in map(int, ids):
+                # Skip if this mapping already exists
+                mapping_exists = session.exec(
+                    sqlalchemy.select(TermToPMID).where(
+                        TermToPMID.term == term,
+                        TermToPMID.pmid == pmid,
+                        TermToPMID.gene == gene,
+                    )
+                ).first()
+                if mapping_exists:
+                    logger.info(
+                        f"Already mapped: (term={term}, PMID={pmid}, gene={gene})"
+                    )
                     continue
-
-                for pmid in map(int, ids):
-                    # Skip if this mapping already exists
-                    mapping_exists = session.exec(
-                        sqlalchemy.select(TermToPMID).where(
-                            TermToPMID.term == term,
-                            TermToPMID.pmid == pmid,
-                            TermToPMID.searched_with == sterm,
+                # Add article metadata if it's not already stored
+                article_exists = session.exec(
+                    sqlalchemy.select(PubmedArticle).where(
+                        PubmedArticle.pmid == pmid
+                    )
+                ).first()
+                if not article_exists:
+                    try:
+                        fetch = Entrez.efetch(
+                            db="pubmed",
+                            id=str(pmid),
+                            rettype="medline",
+                            retmode="xml",
                         )
-                    ).first()
-                    if mapping_exists:
-                        logger.info(
-                            f"Already mapped: (term={term}, PMID={pmid}, searched_with={sterm})"
-                        )
-                        continue
-
-                    # Add article metadata if it's not already stored
-                    article_exists = session.exec(
-                        sqlalchemy.select(PubmedArticle).where(
-                            PubmedArticle.pmid == pmid
-                        )
-                    ).first()
-                    if not article_exists:
-                        try:
-                            fetch = Entrez.efetch(
-                                db="pubmed",
-                                id=str(pmid),
-                                rettype="medline",
-                                retmode="xml",
-                            )
-                            article_data = Entrez.read(fetch)
-                            pubmed_articles = article_data.get("PubmedArticle", [])
-                            if not pubmed_articles:
-                                logger.warning(
-                                    f"No PubmedArticle found for PMID {pmid}"
-                                )
-                                continue
-                            article = (
-                                pubmed_articles[0]
-                                .get("MedlineCitation", {})
-                                .get("Article", {})
-                            )
-                            parsed = self.parse_article(article, pmid)
-                            if parsed:
-                                session.add(parsed)
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to fetch article for PMID {pmid}: {e}"
-                            )
+                        article_data = Entrez.read(fetch)
+                        pubmed_articles = article_data.get("PubmedArticle", [])
+                        if not pubmed_articles:
+                            logger.warning(f"No PubmedArticle found for PMID {pmid}")
                             continue
+                        article = (
+                            pubmed_articles[0]
+                            .get("MedlineCitation", {})
+                            .get("Article", {})
+                        )
+                        parsed = self.parse_article(article, pmid)
+                        if parsed:
+                            session.add(parsed)
+                    except Exception as e:
+                        logger.error(f"Failed to fetch article for PMID {pmid}: {e}")
+                        continue
+                # Store the mapping term → pmid with the exact searched term
+                session.add(TermToPMID(term=term, pmid=pmid, gene=gene))
 
-                    # Store the mapping term → pmid with the exact searched term
-                    session.add(TermToPMID(term=term, pmid=pmid, searched_with=sterm))
-
-            except Exception as e:
-                logger.error(f"Skipping term {sterm} due to error: {e}")
+        except Exception as e:
+            logger.error(f"Skipping term {term} due to error: {e}")
 
     def parse_article(self, article: dict, pmid: int) -> Optional[PubmedArticle]:
         """
@@ -212,7 +210,6 @@ class PubmedDB:
                     abstract = str(abstract_text)
             except Exception as e:
                 logger.warning(f"Abstract parse failed for PMID {pmid}: {e}")
-
             # Extract author names
             authors = ""
             try:
@@ -233,7 +230,6 @@ class PubmedDB:
                 .get("PubDate", {})
                 .get("Year", "")
             )
-
             # Extract DOI if available
             doi = ""
             try:
