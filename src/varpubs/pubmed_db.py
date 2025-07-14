@@ -18,6 +18,7 @@ class PubmedArticle(SQLModel, table=True):
     Represents a PubMed article record in the database.
     Stores metadata such as title, abstract, authors, journal, publication date, and DOI.
     """
+
     pmid: int = Field(Integer, primary_key=True, nullable=False)
     title: str
     abstract: str
@@ -30,9 +31,9 @@ class PubmedArticle(SQLModel, table=True):
 class TermToPMID(SQLModel, table=True):
     """
     Maps a searched variant term (HGVS.p) to PubMed article PMIDs.
-    
+
     This table captures which search term (e.g., "KRAS p.G12D") led to which PubMed article.
-    It is designed with a composite primary key (term, pmid, gene) to prevent duplicate entries 
+    It is designed with a composite primary key (term, pmid, gene) to prevent duplicate entries
     and to reflect the fact that a single term may map to multiple articles and vice versa.
 
     Attributes:
@@ -40,6 +41,7 @@ class TermToPMID(SQLModel, table=True):
         pmid (int): PubMed ID of the retrieved article.
         gene (str): Gene name parsed from the variant (e.g., "KRAS").
     """
+
     term: str = Field(nullable=False)
     pmid: int = Field(Integer, nullable=False)
     gene: str = Field(nullable=False)
@@ -54,6 +56,7 @@ class PubmedDB:
     Class responsible for building and managing a local DuckDB database
     that maps HGVS.p variant annotations to PubMed articles.
     """
+
     path: Path
     vcf_paths: Iterable[Path]
     email: str
@@ -149,9 +152,7 @@ class PubmedDB:
                     continue
                 # Add article metadata if it's not already stored
                 article_exists = session.exec(
-                    sqlalchemy.select(PubmedArticle).where(
-                        PubmedArticle.pmid == pmid
-                    )
+                    sqlalchemy.select(PubmedArticle).where(PubmedArticle.pmid == pmid)
                 ).first()
                 if not article_exists:
                     try:
