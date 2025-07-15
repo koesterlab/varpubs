@@ -7,6 +7,8 @@ from sqlmodel import Field, SQLModel, Session, Integer
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from Bio import Entrez
 import re
+from sqlmodel import select
+from sqlalchemy import and_
 
 # Set up logger
 logging.basicConfig(level=logging.INFO)
@@ -128,7 +130,9 @@ class PubmedDB:
         try:
             handle = Entrez.esearch(db="pubmed", term=term, retmax=3)
             record = Entrez.read(handle)
-            ids = record.get("IdList", [])
+            ids = []
+            if isinstance(record, dict):
+                ids = record.get("IdList", [])
             if not ids:
                 logger.info(f"No PubMed results for: {term}")
                 return
@@ -137,23 +141,40 @@ class PubmedDB:
             gene = match.group(1) if match else "UNKNOWN"
 
             for pmid in map(int, ids):
-                # Skip if this mapping already exists
-                mapping_exists = session.exec(
-                    sqlalchemy.select(TermToPMID).where(
-                        TermToPMID.term == term,
-                        TermToPMID.pmid == pmid,
-                        TermToPMID.gene == gene,
-                    )
-                ).first()
+                # Build conditions only if inputs are not None.
+                conditions = []
+
+                # Term condition
+                if term is not None:
+                    conditions.append(TermToPMID.term == term)
+
+                # PMID condition
+                if pmid is not None:
+                    conditions.append(TermToPMID.pmid == pmid)
+
+                # Gene condition
+                if gene is not None:
+                    conditions.append(TermToPMID.gene == gene)
+
+                # If we have at least one condition, construct the WHERE clause
+                if conditions:
+                    stmt = select(TermToPMID).where(and_(*conditions))
+                else:
+                    # If no condition is given, select all (safe fallback)
+                    stmt = select(TermToPMID)
+
+                # Run the query and check if the mapping already exists
+                # Use .scalars() to get model objects, then .first() to fetch the first result
+                mapping_exists = session.exec(stmt).first()
+
                 if mapping_exists:
                     logger.info(
                         f"Already mapped: (term={term}, PMID={pmid}, gene={gene})"
                     )
                     continue
                 # Add article metadata if it's not already stored
-                article_exists = session.exec(
-                    sqlalchemy.select(PubmedArticle).where(PubmedArticle.pmid == pmid)
-                ).first()
+                stmt = select(PubmedArticle).where(PubmedArticle.pmid == pmid)
+                article_exists = session.exec(stmt).first()
                 if not article_exists:
                     try:
                         fetch = Entrez.efetch(
@@ -163,15 +184,21 @@ class PubmedDB:
                             retmode="xml",
                         )
                         article_data = Entrez.read(fetch)
-                        pubmed_articles = article_data.get("PubmedArticle", [])
+                        pubmed_articles = []
+                        if isinstance(article_data, dict):
+                            pubmed_articles = article_data.get("PubmedArticle", [])
                         if not pubmed_articles:
                             logger.warning(f"No PubmedArticle found for PMID {pmid}")
                             continue
-                        article = (
-                            pubmed_articles[0]
-                            .get("MedlineCitation", {})
-                            .get("Article", {})
+                        article_dict = pubmed_articles[0]
+                        if not isinstance(article_dict, dict):
+                            logger.warning(f"Unexpected article format for PMID {pmid}")
+                            return None
+
+                        article = article_dict.get("MedlineCitation", {}).get(
+                            "Article", {}
                         )
+
                         parsed = self.parse_article(article, pmid)
                         if parsed:
                             session.add(parsed)
@@ -201,7 +228,9 @@ class PubmedDB:
             # Extract abstract text
             abstract = ""
             try:
-                abstract_obj = article.get("Abstract", {})
+                abstract_obj = (
+                    article.get("Abstract", {}) if isinstance(article, dict) else {}
+                )
                 abstract_text = abstract_obj.get("AbstractText", "")
                 if isinstance(abstract_text, list):
                     abstract = " ".join(str(p) for p in abstract_text)
@@ -223,8 +252,11 @@ class PubmedDB:
                     )
             except Exception as e:
                 logger.warning(f"Author parse failed for PMID {pmid}: {e}")
-
-            journal = article.get("Journal", {}).get("Title", "")
+            journal = (
+                article.get("Journal", {}).get("Title", "")
+                if isinstance(article, dict)
+                else ""
+            )
             pub_date = (
                 article.get("Journal", {})
                 .get("JournalIssue", {})

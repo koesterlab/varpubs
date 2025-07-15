@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Optional
-
 from huggingface_hub import InferenceClient
 from varpubs.pubmed_db import PubmedArticle
 
@@ -8,7 +7,7 @@ from varpubs.pubmed_db import PubmedArticle
 @dataclass
 class HFSettings:
     token: str
-    model: str = "HuggingFaceH4/zephyr-7b-beta"
+    model: str = "mistralai/Mistral-7B-Instruct-v0.1"
     max_new_tokens: int = 200
     temperature: float = 0.1
 
