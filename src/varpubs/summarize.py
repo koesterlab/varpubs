@@ -7,7 +7,7 @@ from varpubs.pubmed_db import PubmedArticle
 @dataclass
 class HFSettings:
     token: str
-    model: str = "mistralai/Mistral-7B-Instruct-v0.1"
+    model: str = "facebook/bart-large-cnn"
     max_new_tokens: int = 200
     temperature: float = 0.1
 
@@ -27,14 +27,11 @@ class PubmedSummarizer:
         return self._client
 
     def summarize(self, article: PubmedArticle) -> str:
-        prompt = (
-            f"Summarize the following PubMed abstract about genetic variants:\n\n"
-            f"Title: {article.title}\n\n"
-            f"Abstract: {article.abstract}\n"
-        )
-        result = self.client.text_generation(
-            prompt,
-            max_new_tokens=self.settings.max_new_tokens,
-            temperature=self.settings.temperature,
-        )
-        return result.strip()
+            input_text = (
+                f"Title: {article.title}\n\n"
+                f"{article.abstract}"
+            )
+            result = self.client.summarization(
+                input_text,
+            )
+            return str(result).strip()
