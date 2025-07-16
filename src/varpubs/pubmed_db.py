@@ -141,31 +141,13 @@ class PubmedDB:
             gene = match.group(1) if match else "UNKNOWN"
 
             for pmid in map(int, ids):
-                # Build conditions only if inputs are not None.
-                conditions = []
-
-                # Term condition
-                if term is not None:
-                    conditions.append(TermToPMID.term == term)
-
-                # PMID condition
-                if pmid is not None:
-                    conditions.append(TermToPMID.pmid == pmid)
-
-                # Gene condition
-                if gene is not None:
-                    conditions.append(TermToPMID.gene == gene)
-
-                # If we have at least one condition, construct the WHERE clause
-                if conditions:
-                    stmt = select(TermToPMID).where(and_(*conditions))
-                else:
-                    # If no condition is given, select all (safe fallback)
-                    stmt = select(TermToPMID)
-
-                # Run the query and check if the mapping already exists
-                # Use .scalars() to get model objects, then .first() to fetch the first result
-                mapping_exists = session.exec(stmt).first()
+                mapping_exists = session.exec(
+                    select(TermToPMID).where(
+                        TermToPMID.term == term,
+                        TermToPMID.pmid == pmid,
+                        TermToPMID.gene == gene,
+                    )
+                ).first()
 
                 if mapping_exists:
                     logger.info(
