@@ -8,7 +8,6 @@ from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from Bio import Entrez
 import re
 from sqlmodel import select
-from sqlalchemy import and_
 
 # Set up logger
 logging.basicConfig(level=logging.INFO)
