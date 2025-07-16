@@ -27,11 +27,8 @@ class PubmedSummarizer:
         return self._client
 
     def summarize(self, article: PubmedArticle) -> str:
-            input_text = (
-                f"Title: {article.title}\n\n"
-                f"{article.abstract}"
-            )
-            result = self.client.summarization(
-                input_text,
-            )
-            return str(result).strip()
+        input_text = f"Title: {article.title}\n\n{article.abstract}"
+        result = self.client.summarization(
+            input_text,
+        )
+        return str(result).strip()
