@@ -46,11 +46,6 @@ def summarize_variants(
                 row = [term, pmid, summary_text, article.doi or "N/A"]
                 rows.append(row)
 
-                logging.info(f"Variant: {term}")
-                logging.info(f"PMID: {pmid}")
-                logging.info(f"Summary:\n{summary_text}")
-                logging.info(f"DOI: {article.doi or 'N/A'}")
-                logging.info("-" * 40)
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
