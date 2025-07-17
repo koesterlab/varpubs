@@ -1,3 +1,5 @@
+import logging
+import csv
 from pathlib import Path
 from typing import Optional
 from sqlmodel import Session, select
@@ -14,28 +16,23 @@ def summarize_variants(
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
-    summarizes them using the given summarizer, and optionally saves the summaries to a file.
-    
-    Example terminal usage:
-    pixi run varpubs summarize-variants \
-    --db_path mydb.duckdb \
-    --vcf_path /Users/ilmaytas/Desktop/annotated.vcf \
-    --hf_token hf_... \
-    --output /Users/ilmaytas/Desktop/summary.txt
+    summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
-    terms = extract_hgvsp_from_vcf(str(vcf_path))  # Extract variant terms from VCF
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    terms = extract_hgvsp_from_vcf(str(vcf_path))
     db = PubmedDB(path=db_path, vcf_paths=[], email="")
     engine = db.engine
 
     with Session(engine) as session:
-        all_summaries = []
+        rows = []
 
         for term in terms:
-            print(f"\n Variant term: {term}")
+            logging.info(f"Variant term: {term}")
             mappings = session.exec(
                 select(TermToPMID).where(TermToPMID.term == term)
             ).all()
-            pmids = set(m.pmid for m in mappings)  # Get unique PMIDs
+            pmids = set(m.pmid for m in mappings)
 
             for pmid in pmids:
                 article = session.exec(
@@ -44,11 +41,19 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary = summarizer.summarize(article)  # Summarize article content
-                output = f" Variant: {term}\n PMID: {pmid}\n Summary:\n{summary}\n🔗 DOI: {article.doi or 'N/A'}\n"
-                print(output)
-                all_summaries.append(output)
+                summary_text = summarizer.summarize(article)
+
+                row = [term, pmid, summary_text, article.doi or "N/A"]
+                rows.append(row)
+
+                logging.info(f"Variant: {term}")
+                logging.info(f"PMID: {pmid}")
+                logging.info(f"Summary:\n{summary_text}")
+                logging.info(f"DOI: {article.doi or 'N/A'}")
+                logging.info("-" * 40)
 
         if out_path:
-            with open(out_path, "w") as f:
-                f.write("\n".join(all_summaries))  # Save all summaries to file
+            with open(out_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Variant", "PMID", "Summary", "DOI"])
+                writer.writerows(rows)

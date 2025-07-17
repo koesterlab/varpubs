@@ -30,13 +30,13 @@ class SummarizeArgs:
     - vcf_path: A single annotated VCF file with variant terms.
     - hf_token: Hugging Face API token for model access.
     - hf_model: The LLM model used for summarization (default: Mistral 7B).
-    - output: Optional path to save the final variant summaries.
+    - output: Optional path to save the final variant summaries. (cvs)
     """
 
     db_path: Path
     vcf_path: Path
     hf_token: str
-    hf_model: str = "mistralai/Mistral-7B-Instruct-v0.1"
+    hf_model: str = "facebook/bart-large-cnn"
     output: Optional[Path] = None
 
 
@@ -51,11 +51,9 @@ def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # --- deploy-db command setup ---
     deploy_parser = subparsers.add_parser("deploy-db", help="Deploy the database")
     deploy_parser.add_arguments(DeployDBArgs, dest="args")
 
-    # --- summarize-variants command setup ---
     summarize_parser = subparsers.add_parser(
         "summarize-variants", help="Summarize variants using LLM"
     )
@@ -64,14 +62,12 @@ def main():
     args = parser.parse_args()
 
     if args.command == "deploy-db":
-        # Build and deploy the PubMed database using VCF files
         db = PubmedDB(
             path=args.args.db_path, vcf_paths=args.args.vcf_paths, email=args.args.email
         )
         db.deploy()
 
     elif args.command == "summarize-variants":
-        # Import summarization function and run it using provided model/token
         from varpubs.summarize_variants import summarize_variants
 
         summarizer = PubmedSummarizer(
