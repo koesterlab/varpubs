@@ -1,24 +1,85 @@
 from simple_parsing import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List, Optional
 from varpubs.pubmed_db import PubmedDB
+from varpubs.summarize import HFSettings, PubmedSummarizer
 
 
 @dataclass
-class Settings:
+class DeployDBArgs:
+    """
+    Command-line arguments for deploying the PubMed variant database.
+
+    - db_path: Path to the DuckDB database file to be created or updated.
+    - vcf_paths: List of VCF files containing variant information.
+    - email: Email address used for Entrez API access.
+    """
+
     db_path: Path
+    vcf_paths: List[Path]
+    email: str
 
 
-def get_argument_parser() -> ArgumentParser:
-    parser: ArgumentParser = ArgumentParser()
-    parser.add_arguments(Settings, dest="options")
-    subparsers = parser.add_subparsers(help="subcommand help")
-    subparsers.add_parser("deploy-db", help="Deploy the database")
-    return parser
+@dataclass
+class SummarizeArgs:
+    """
+    Command-line arguments for summarizing PubMed articles related to variants.
+
+    - db_path: Path to the existing DuckDB database file.
+    - vcf_path: A single annotated VCF file with variant terms.
+    - hf_token: Hugging Face API token for model access.
+    - hf_model: The LLM model used for summarization (default: Mistral 7B).
+    - output: Optional path to save the final variant summaries. (cvs)
+    """
+
+    db_path: Path
+    vcf_path: Path
+    hf_token: str
+    hf_model: str = "facebook/bart-large-cnn"
+    output: Optional[Path] = None
 
 
 def main():
-    args = get_argument_parser().parse_args()
-    db = PubmedDB(path=args.db_path)
-    if args.subparser_name == "deploy-db":
+    """
+    Entry point for the varpubs CLI tool.
+
+    Supports two commands:
+    - 'deploy-db': Parses VCFs and populates the DuckDB database with PubMed entries.
+    - 'summarize-variants': Summarizes articles related to variants using an LLM model.
+    """
+    parser = ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    deploy_parser = subparsers.add_parser("deploy-db", help="Deploy the database")
+    deploy_parser.add_arguments(DeployDBArgs, dest="args")
+
+    summarize_parser = subparsers.add_parser(
+        "summarize-variants", help="Summarize variants using LLM"
+    )
+    summarize_parser.add_arguments(SummarizeArgs, dest="args")
+
+    args = parser.parse_args()
+
+    if args.command == "deploy-db":
+        db = PubmedDB(
+            path=args.args.db_path, vcf_paths=args.args.vcf_paths, email=args.args.email
+        )
         db.deploy()
+
+    elif args.command == "summarize-variants":
+        from varpubs.summarize_variants import summarize_variants
+
+        summarizer = PubmedSummarizer(
+            settings=HFSettings(
+                token=args.args.hf_token,
+                model=args.args.hf_model,
+            )
+        )
+
+        summarize_variants(
+            db_path=args.args.db_path,
+            vcf_path=args.args.vcf_path,
+            summarizer=summarizer,
+            out_path=args.args.output,
+        )
