@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Iterable
+from typing import cast, Optional, Iterable
 import logging
 import sqlalchemy
 from sqlmodel import Field, SQLModel, Session, Integer
@@ -15,11 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class PubmedArticle(SQLModel, table=True):
-    """
-    Represents a PubMed article record in the database.
-    Stores metadata such as title, abstract, authors, journal, publication date, and DOI.
-    """
-
     pmid: int = Field(Integer, primary_key=True, nullable=False)
     title: str
     abstract: str
@@ -30,46 +25,21 @@ class PubmedArticle(SQLModel, table=True):
 
 
 class TermToPMID(SQLModel, table=True):
-    """
-    Maps a searched variant term (HGVS.p) to PubMed article PMIDs.
-
-    This table captures which search term (e.g., "KRAS p.G12D") led to which PubMed article.
-    It is designed with a composite primary key (term, pmid, gene) to prevent duplicate entries
-    and to reflect the fact that a single term may map to multiple articles and vice versa.
-
-    Attributes:
-        term (str): The HGVS.p variant term used in the PubMed query.
-        pmid (int): PubMed ID of the retrieved article.
-        gene (str): Gene name parsed from the variant (e.g., "KRAS").
-    """
-
     term: str = Field(nullable=False)
     pmid: int = Field(Integer, nullable=False)
     gene: str = Field(nullable=False)
 
-    # Composite primary key to prevent duplicates
     __table_args__ = (sqlalchemy.PrimaryKeyConstraint("term", "pmid", "gene"),)
 
 
 @dataclass
 class PubmedDB:
-    """
-    Class responsible for building and managing a local DuckDB database
-    that maps HGVS.p variant annotations to PubMed articles.
-    """
-
     path: Path
     vcf_paths: Iterable[Path]
     email: str
     _engine: Optional[sqlalchemy.engine.base.Engine] = field(init=False, default=None)
 
     def deploy(self) -> None:
-        """
-        Main pipeline entry point.
-        - Extracts terms from VCFs
-        - Queries PubMed for those terms
-        - Saves article metadata and mapping info to the database
-        """
         logger.info(f"Deploying database at: {self.path}")
         logger.info(f"Input VCF paths: {[str(p) for p in self.vcf_paths]}")
         logger.info(f"Entrez email: {self.email}")
@@ -79,16 +49,42 @@ class PubmedDB:
         Entrez.email = self.email
 
         with Session(self.engine) as session:
-            for term in terms:
-                self.process_term(term, session)
-            session.commit()
+            all_pmids = set()
+            term_to_pmids = {}
 
-        logger.info("Data committed to the database.")
+            for term in terms:
+                try:
+                    handle = Entrez.esearch(db="pubmed", term=term, retmax=3)
+                    record = cast(dict, Entrez.read(handle))
+                    pmids = list(map(int, record.get("IdList", [])))
+                    if pmids:
+                        match = re.match(r"(\w+)\sp\.", term)
+                        gene = match.group(1) if match else "UNKNOWN"
+                        term_to_pmids[term] = [(pmid, gene) for pmid in pmids]
+                        all_pmids.update(pmids)
+                except Exception as e:
+                    logger.error(f"Error fetching PMIDs for term '{term}': {e}")
+
+            # Fetch metadata in batch
+            self.fetch_articles_metadata(session, list(all_pmids))
+
+            # Store term→pmid mappings
+            for term, pmid_gene_list in term_to_pmids.items():
+                for pmid, gene in pmid_gene_list:
+                    exists = session.exec(
+                        select(TermToPMID).where(
+                            TermToPMID.term == term,
+                            TermToPMID.pmid == pmid,
+                            TermToPMID.gene == gene,
+                        )
+                    ).first()
+                    if not exists:
+                        session.add(TermToPMID(term=term, pmid=pmid, gene=gene))
+
+            session.commit()
+            logger.info("Data committed to the database.")
 
     def create_tables(self) -> None:
-        """
-        Creates required tables in the DuckDB database if they don't already exist.
-        """
         if self.path.parent != Path():
             self.path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -101,112 +97,40 @@ class PubmedDB:
             logger.info("Existing database found. Tables checked or updated.")
 
     def extract_terms(self) -> set[str]:
-        """
-        Extracts all unique variant terms (HGVS.p) from provided VCF files.
-
-        Returns:
-            set[str]: Unique set of variant terms for querying PubMed.
-        """
         terms = set()
         for vcf_path in self.vcf_paths:
             terms.update(extract_hgvsp_from_vcf(str(vcf_path)))
         return terms
 
-    def process_term(self, term: str, session: Session) -> None:
-        """
-        For a given variant term, searches PubMed and stores the article metadata
-        and the mapping (term → pmid) into the database.
-
-        This method performs the following:
-        - Queries PubMed using the variant term.
-        - Parses the gene name from the term (e.g., "KRAS" from "KRAS p.G12D").
-        - Checks if the mapping (term, pmid, gene) already exists in the TermToPMID table.
-        - If the article corresponding to a PMID is not already stored in PubmedArticle,
-        fetches metadata and stores it.
-        - Saves the term-to-article mapping in TermToPMID for traceability.
-        """
-        logger.info(f"Searching PubMed for: {term}")
-        try:
-            handle = Entrez.esearch(db="pubmed", term=term, retmax=3)
-            record = Entrez.read(handle)
-            ids = []
-            if isinstance(record, dict):
-                ids = record.get("IdList", [])
-            if not ids:
-                logger.info(f"No PubMed results for: {term}")
-                return
-
-            match = re.match(r"(\w+)\sp\.", term)
-            gene = match.group(1) if match else "UNKNOWN"
-
-            for pmid in map(int, ids):
-                mapping_exists = session.exec(
-                    select(TermToPMID).where(
-                        TermToPMID.term == term,
-                        TermToPMID.pmid == pmid,
-                        TermToPMID.gene == gene,
-                    )
-                ).first()
-
-                if mapping_exists:
-                    logger.info(
-                        f"Already mapped: (term={term}, PMID={pmid}, gene={gene})"
-                    )
-                    continue
-                # Add article metadata if it's not already stored
-                stmt = select(PubmedArticle).where(PubmedArticle.pmid == pmid)
-                article_exists = session.exec(stmt).first()
-                if not article_exists:
-                    try:
-                        fetch = Entrez.efetch(
-                            db="pubmed",
-                            id=str(pmid),
-                            rettype="medline",
-                            retmode="xml",
-                        )
-                        article_data = Entrez.read(fetch)
-                        pubmed_articles = []
-                        if isinstance(article_data, dict):
-                            pubmed_articles = article_data.get("PubmedArticle", [])
-                        if not pubmed_articles:
-                            logger.warning(f"No PubmedArticle found for PMID {pmid}")
-                            continue
-                        article_dict = pubmed_articles[0]
-                        if not isinstance(article_dict, dict):
-                            logger.warning(f"Unexpected article format for PMID {pmid}")
-                            return None
-
-                        article = article_dict.get("MedlineCitation", {}).get(
-                            "Article", {}
-                        )
-
+    def fetch_articles_metadata(self, session: Session, pmids: list[int]) -> None:
+        BATCH_SIZE = 50
+        for i in range(0, len(pmids), BATCH_SIZE):
+            batch = pmids[i : i + BATCH_SIZE]
+            try:
+                fetch = Entrez.efetch(
+                    db="pubmed",
+                    id=",".join(map(str, batch)),
+                    rettype="medline",
+                    retmode="xml",
+                )
+                data = cast(dict, Entrez.read(fetch))
+                for item in data.get("PubmedArticle", []):
+                    medline = cast(dict, item.get("MedlineCitation", {}))
+                    article = cast(dict, medline.get("Article", {}))
+                    pmid = int(cast(str, medline.get("PMID", "0")))
+                    exists = session.exec(
+                        select(PubmedArticle).where(PubmedArticle.pmid == pmid)
+                    ).first()
+                    if not exists:
                         parsed = self.parse_article(article, pmid)
                         if parsed:
                             session.add(parsed)
-                    except Exception as e:
-                        logger.error(f"Failed to fetch article for PMID {pmid}: {e}")
-                        continue
-                # Store the mapping term → pmid with the exact searched term
-                session.add(TermToPMID(term=term, pmid=pmid, gene=gene))
-
-        except Exception as e:
-            logger.error(f"Skipping term {term} due to error: {e}")
+            except Exception as e:
+                logger.error(f"Batch fetch failed for PMIDs {batch}: {e}")
 
     def parse_article(self, article: dict, pmid: int) -> Optional[PubmedArticle]:
-        """
-        Converts raw article data from Entrez into a PubmedArticle DB record.
-
-        Args:
-            article (dict): Article data parsed from PubMed.
-            pmid (int): PubMed ID for the article.
-
-        Returns:
-            Optional[PubmedArticle]: A PubmedArticle object or None if parsing failed.
-        """
         try:
             title = article.get("ArticleTitle", "")
-
-            # Extract abstract text
             abstract = ""
             try:
                 abstract_obj = (
@@ -221,7 +145,7 @@ class PubmedDB:
                     abstract = str(abstract_text)
             except Exception as e:
                 logger.warning(f"Abstract parse failed for PMID {pmid}: {e}")
-            # Extract author names
+
             authors = ""
             try:
                 author_list = article.get("AuthorList", [])
@@ -233,6 +157,7 @@ class PubmedDB:
                     )
             except Exception as e:
                 logger.warning(f"Author parse failed for PMID {pmid}: {e}")
+
             journal = (
                 article.get("Journal", {}).get("Title", "")
                 if isinstance(article, dict)
@@ -244,7 +169,6 @@ class PubmedDB:
                 .get("PubDate", {})
                 .get("Year", "")
             )
-            # Extract DOI if available
             doi = ""
             try:
                 eloc = article.get("ELocationID", [{}])
@@ -268,12 +192,6 @@ class PubmedDB:
 
     @property
     def engine(self) -> sqlalchemy.engine.base.Engine:
-        """
-        Lazily initializes and returns the SQLAlchemy engine for DuckDB.
-
-        Returns:
-            sqlalchemy.engine.base.Engine: Connection engine to the DuckDB database.
-        """
         if self._engine is None:
             self._engine = sqlalchemy.create_engine(f"duckdb:///{self.path}")
         return self._engine
