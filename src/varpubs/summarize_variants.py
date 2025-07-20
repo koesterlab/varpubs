@@ -46,7 +46,6 @@ def summarize_variants(
                 row = [term, pmid, summary_text, article.doi or "N/A"]
                 rows.append(row)
 
-
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
