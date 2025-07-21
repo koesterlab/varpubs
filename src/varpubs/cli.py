@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 from varpubs.pubmed_db import PubmedDB
-from varpubs.summarize import HFSettings, PubmedSummarizer
+from varpubs.summarize import Settings, PubmedSummarizer
 
 
 @dataclass
@@ -29,15 +29,17 @@ class SummarizeArgs:
 
     - db_path: Path to the existing DuckDB database file.
     - vcf_path: A single annotated VCF file with variant terms.
-    - hf_token: Hugging Face API token for model access.
-    - hf_model: The LLM model used for summarization (default: Mistral 7B).
-    - output: Optional path to save the final variant summaries. (csv)
+    - api_key: Hugging Face API token for model access.
+    - llm_url: Base URL for LLM API (Must follow the openai API format)
+    - model: The LLM model used for summarization (default: teuken-7b-instruct-research).
+    - output: Optional path to save the final variant summary file (CSV).
     """
 
     db_path: Path
     vcf_path: Path
-    hf_token: str
-    hf_model: str = "facebook/bart-large-cnn"
+    api_key: str
+    llm_url: str
+    model: str = "teuken-7b-instruct-research"
     output: Optional[Path] = None
 
 
@@ -87,9 +89,10 @@ def main():
         from varpubs.summarize_variants import summarize_variants
 
         summarizer = PubmedSummarizer(
-            settings=HFSettings(
-                token=args.args.hf_token,
-                model=args.args.hf_model,
+            settings=Settings(
+                api_key=args.args.api_key,
+                model=args.args.model,
+                base_url=args.args.llm_url,
             )
         )
 
