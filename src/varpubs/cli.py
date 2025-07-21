@@ -1,3 +1,4 @@
+import logging
 from simple_parsing import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +52,14 @@ def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase verbosity level (use -v, -vv, -vvv)",
+    )
+
     deploy_parser = subparsers.add_parser("deploy-db", help="Deploy the database")
     deploy_parser.add_arguments(DeployDBArgs, dest="args")
 
@@ -60,6 +69,13 @@ def main():
     summarize_parser.add_arguments(SummarizeArgs, dest="args")
 
     args = parser.parse_args()
+
+    level = logging.WARNING
+    if args.verbose == 1:
+        level = logging.INFO
+    elif args.verbose >= 2:
+        level = logging.DEBUG
+    logging.basicConfig(level=level)
 
     if args.command == "deploy-db":
         db = PubmedDB(

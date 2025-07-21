@@ -9,8 +9,6 @@ from Bio import Entrez
 import re
 from sqlmodel import select
 
-# Set up logger
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -85,7 +83,7 @@ class PubmedDB:
             logger.info("Data committed to the database.")
 
     def create_tables(self) -> None:
-self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.info("Creating or updating tables...")
         SQLModel.metadata.create_all(self.engine)

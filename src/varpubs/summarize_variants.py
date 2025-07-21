@@ -18,7 +18,6 @@ def summarize_variants(
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
     summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     terms = extract_hgvsp_from_vcf(str(vcf_path))
     db = PubmedDB(path=db_path, vcf_paths=[], email="")
