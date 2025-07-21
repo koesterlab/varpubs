@@ -31,7 +31,7 @@ class SummarizeArgs:
     - vcf_path: A single annotated VCF file with variant terms.
     - hf_token: Hugging Face API token for model access.
     - hf_model: The LLM model used for summarization (default: Mistral 7B).
-    - output: Optional path to save the final variant summaries. (cvs)
+    - output: Optional path to save the final variant summaries. (csv)
     """
 
     db_path: Path
