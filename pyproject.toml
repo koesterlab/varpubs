@@ -1,5 +1,9 @@
 [project]
-authors = [{ name = "Johannes Koester", email = "johannes.koester@uni-due.de" }]
+authors = [
+  { name = "Ilmay Tas", email = "ilmay.tas@ug.bilkent.edu.tr" },
+  { name = "Felix Wiegand", email = "fxwiegand@wgdnet.de" },
+  { name = "Johannes Koester", email = "johannes.koester@uni-due.de" }
+]
 name = "varpubs"
 requires-python = ">= 3.11"
 version = "0.1.0"
