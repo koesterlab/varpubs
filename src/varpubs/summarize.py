@@ -1,32 +1,37 @@
 from dataclasses import dataclass
 from typing import Optional
-from huggingface_hub import InferenceClient
+from openai import OpenAI
 from varpubs.pubmed_db import PubmedArticle
 
 
 @dataclass
-class HFSettings:
-    token: str
-    model: str = "facebook/bart-large-cnn"
-    max_new_tokens: int = 200
+class Settings:
+    api_key: str
+    model: str = "teuken-7b-instruct-research"
+    base_url: Optional[str] = None
+    max_new_tokens: int = 500
     temperature: float = 0.1
 
 
 @dataclass
 class PubmedSummarizer:
-    settings: HFSettings
-    _client: Optional[InferenceClient] = None
+    settings: Settings
 
     @property
-    def client(self) -> InferenceClient:
-        if self._client is None:
-            self._client = InferenceClient(
-                model=self.settings.model,
-                token=self.settings.token,
-            )
-        return self._client
+    def client(self) -> OpenAI:
+        return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
     def summarize(self, article: PubmedArticle) -> str:
-        input_text = f"Title: {article.title}\n\n{article.abstract}"
-        result = self.client.summarization(input_text)
-        return result.summary_text.strip()
+        instruction_text = "You are a helpful medical expert and assistant that summarizes scientific articles. Only output the summary itself — do absolutely not include any labels like 'Summary:'."
+        input_text = f"Please summarize the following scientific abstract:\n\nTitle: {article.title}\n\n{article.abstract}"
+
+        response = self.client.chat.completions.create(
+            model=self.settings.model,
+            messages=[
+                {"role": "system", "content": instruction_text},
+                {"role": "user", "content": input_text},
+            ],
+            temperature=self.settings.temperature,
+            max_tokens=self.settings.max_new_tokens,
+        )
+        return str(response.choices[0].message.content)

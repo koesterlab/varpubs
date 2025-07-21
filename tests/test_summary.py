@@ -1,5 +1,5 @@
 from varpubs.pubmed_db import PubmedArticle
-from varpubs.summarize import PubmedSummarizer, HFSettings
+from varpubs.summarize import PubmedSummarizer, Settings
 import os
 
 
@@ -14,7 +14,9 @@ def test_summarization():
         doi="10.1234/genetictoday.2023.456",
     )
 
-    settings = HFSettings(token=os.environ["HF_TOKEN"])
+    settings = Settings(
+        api_key=os.environ["LLM_API_KEY"], base_url=os.environ["LLM_API_BASE_URL"]
+    )
 
     summarizer = PubmedSummarizer(settings)
     summary = summarizer.summarize(article)
