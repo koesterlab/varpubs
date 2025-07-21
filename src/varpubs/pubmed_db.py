@@ -85,8 +85,7 @@ class PubmedDB:
             logger.info("Data committed to the database.")
 
     def create_tables(self) -> None:
-        if self.path.parent != Path():
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+self.path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.info("Creating or updating tables...")
         SQLModel.metadata.create_all(self.engine)
