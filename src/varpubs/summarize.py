@@ -39,16 +39,16 @@ class PubmedSummarizer:
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         instruction_text = (
-            "You are a scientific reviewer evaluating the factual correctness of summaries. "
-            "You must reply with only one word: either 'True' or 'False'. "
-            "Do not add any explanation, punctuation, or additional words."
-        )
+                "You are a scientific reviewer. "
+                "Your task is to check whether the summary is factually accurate based ONLY on the abstract. "
+                "If any detail is incorrect, misleading, or cannot be confirmed, respond with 'False'. "
+                "Otherwise, respond with 'True'. Respond with exactly one word: 'True' or 'False'."
+            )
 
         input_text = (
-            f"Determine whether the following summary is factually accurate based solely on the abstract.\n\n"
             f"Abstract:\n{abstract}\n\n"
             f"Summary:\n{summary}\n\n"
-            f"Your answer must be exactly either 'True' or 'False'."
+            f"Is the summary factually accurate based on the abstract?"
         )
 
         response = self.client.chat.completions.create(
@@ -57,8 +57,9 @@ class PubmedSummarizer:
                 {"role": "system", "content": instruction_text},
                 {"role": "user", "content": input_text},
             ],
-            temperature=0.1,
+            temperature=1,
             max_tokens=5,
         )
-        print(response.choices[0].message.content)
-        return "True" in str(response.choices[0].message.content)
+
+        answer = str(response.choices[0].message.content).strip().lower()
+        return "true" in answer

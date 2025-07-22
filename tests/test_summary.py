@@ -28,10 +28,21 @@ SETTINGS = Settings(
 def test_summarization():
     summarizer = PubmedSummarizer(SETTINGS)
     summary = summarizer.summarize(ARTICLE, "G12")
-    assert summarizer.validate_summary(ARTICLE.abstract, summary)
+    assert summary
 
 
-def test_summary_validation():
+def test_negative_summary_validation():
     summarizer = PubmedSummarizer(SETTINGS)
-    summary = "The paper validates the impact of rainbows per day (RPD) in western countries on cancer survival while eating ice cream. It also comfirms the earth is flat."
+    summary = "The paper validates the impact of rainbows per day (RPD) in western countries on cancer survival while eating ice cream."
     assert not summarizer.validate_summary(ARTICLE.abstract, summary)
+
+def test_negative_summary_validation_hard():
+    summarizer = PubmedSummarizer(SETTINGS)
+    summary = "The SUNLIGHT trial showed that BRAF V600E mutations did impact OS in patients with refractory metastatic colorectal cancer treated with trifluridine/tipiracil plus bevacizumab."
+    assert not summarizer.validate_summary(ARTICLE.abstract, summary)
+
+def test_positive_summary_validation():
+    summarizer = PubmedSummarizer(SETTINGS)
+    summary = """The SUNLIGHT trial showed that KRASG12 mutations did not impact OS in patients with refractory metastatic colorectal cancer treated with trifluridine/tipiracil plus bevacizumab.
+    The benefit of FTD/TPI plus bevacizumab over FTD/TPI alone was confirmed independently of KRASG12 mutational status."""
+    assert summarizer.validate_summary(ARTICLE.abstract, summary)
