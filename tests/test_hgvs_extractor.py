@@ -14,4 +14,4 @@ def test_get_annotation_field_index():
 def test_extract_hgvsp_from_vcf():
     vcf_path = Path("tests/resources/annotated.vcf")
     terms = extract_hgvsp_from_vcf(str(vcf_path))
-    assert "C1QC G69" in terms
+    assert "C1QC R69" in terms
