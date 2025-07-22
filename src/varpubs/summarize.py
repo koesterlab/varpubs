@@ -36,3 +36,29 @@ class PubmedSummarizer:
             max_tokens=self.settings.max_new_tokens,
         )
         return str(response.choices[0].message.content)
+
+    def validate_summary(self, abstract: str, summary: str) -> bool:
+        instruction_text = (
+            "You are a scientific reviewer evaluating the factual correctness of summaries. "
+            "You must reply with only one word: either 'True' or 'False'. "
+            "Do not add any explanation, punctuation, or additional words."
+        )
+
+        input_text = (
+            f"Determine whether the following summary is factually accurate based solely on the abstract.\n\n"
+            f"Abstract:\n{abstract}\n\n"
+            f"Summary:\n{summary}\n\n"
+            f"Your answer must be exactly either 'True' or 'False'."
+        )
+
+        response = self.client.chat.completions.create(
+            model=self.settings.model,
+            messages=[
+                {"role": "system", "content": instruction_text},
+                {"role": "user", "content": input_text},
+            ],
+            temperature=0.1,
+            max_tokens=5,
+        )
+        print(response.choices[0].message.content)
+        return "True" in str(response.choices[0].message.content)
