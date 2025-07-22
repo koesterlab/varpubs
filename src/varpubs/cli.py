@@ -1,5 +1,5 @@
 import logging
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, DashVariant
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
