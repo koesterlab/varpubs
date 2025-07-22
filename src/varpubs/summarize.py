@@ -39,11 +39,11 @@ class PubmedSummarizer:
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         instruction_text = (
-                "You are a scientific reviewer. "
-                "Your task is to check whether the summary is factually accurate based ONLY on the abstract. "
-                "If any detail is incorrect, misleading, or cannot be confirmed, respond with 'False'. "
-                "Otherwise, respond with 'True'. Respond with exactly one word: 'True' or 'False'."
-            )
+            "You are a scientific reviewer. "
+            "Your task is to check whether the summary is factually accurate based ONLY on the abstract. "
+            "If any detail is incorrect, misleading, or cannot be confirmed, respond with 'False'. "
+            "Otherwise, respond with 'True'. Respond with exactly one word: 'True' or 'False'."
+        )
 
         input_text = (
             f"Abstract:\n{abstract}\n\n"

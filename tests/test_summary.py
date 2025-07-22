@@ -36,10 +36,12 @@ def test_negative_summary_validation():
     summary = "The paper validates the impact of rainbows per day (RPD) in western countries on cancer survival while eating ice cream."
     assert not summarizer.validate_summary(ARTICLE.abstract, summary)
 
+
 def test_negative_summary_validation_hard():
     summarizer = PubmedSummarizer(SETTINGS)
     summary = "The SUNLIGHT trial showed that BRAF V600E mutations did impact OS in patients with refractory metastatic colorectal cancer treated with trifluridine/tipiracil plus bevacizumab."
     assert not summarizer.validate_summary(ARTICLE.abstract, summary)
+
 
 def test_positive_summary_validation():
     summarizer = PubmedSummarizer(SETTINGS)
