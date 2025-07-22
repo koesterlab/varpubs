@@ -1,21 +1,33 @@
 import re
 from cyvcf2 import VCF
 
+# 3-letter to 1-letter amino acid codes
+AA3_TO_1 = {
+    "Ala": "A",
+    "Arg": "R",
+    "Asn": "N",
+    "Asp": "D",
+    "Cys": "C",
+    "Glu": "E",
+    "Gln": "Q",
+    "Gly": "G",
+    "His": "H",
+    "Ile": "I",
+    "Leu": "L",
+    "Lys": "K",
+    "Met": "M",
+    "Phe": "F",
+    "Pro": "P",
+    "Ser": "S",
+    "Thr": "T",
+    "Trp": "W",
+    "Tyr": "Y",
+    "Val": "V",
+    "Ter": "*",
+}
+
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
-    """
-    Retrieves the index of a specified field (e.g., 'HGVS.p', 'Gene_Name') from the ANN column in the VCF header.
-
-    Args:
-        vcf (VCF): A parsed VCF object from cyvcf2.
-        field (str): The desired annotation field to find in the ANN description.
-
-    Returns:
-        int: The index of the given annotation field.
-
-    Raises:
-        RuntimeError: If 'ANN' or the specified field is not found.
-    """
     for rec in vcf.header_iter():
         info = rec.info()
         if info.get("ID") == "ANN":
@@ -31,19 +43,6 @@ def get_annotation_field_index(vcf: VCF, field: str) -> int:
 
 
 def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
-    """
-    Extracts all unique HGVS.p terms from the given VCF file and converts them into two formats:
-    - Full form (e.g., 'KRAS p.Gly12Cys')
-    - Short form (e.g., 'KRAS G12')
-
-    Filters out synonymous (silent) mutations.
-
-    Args:
-        vcf_path (str): Path to the annotated VCF file.
-
-    Returns:
-        list[str]: A sorted list of unique variant terms to be searched in PubMed.
-    """
     vcf = VCF(vcf_path)
     hgvsp_index = get_annotation_field_index(vcf, "HGVS.p")
     gene_index = get_annotation_field_index(vcf, "Gene_Name")
@@ -58,21 +57,32 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
                     hgvsp = fields[hgvsp_index]
                     gene = fields[gene_index]
 
-                    # Skip entries not starting with 'p.' (protein-level annotation)
                     if not hgvsp.startswith("p."):
                         continue
 
-                    # Skip synonymous mutations (e.g., p.Tyr516Tyr)
-                    aa_change = re.findall(r"[A-Za-z]+", hgvsp)
-                    if len(aa_change) == 2 and aa_change[0] == aa_change[1]:
+                    # Match full HGVS.p format: e.g., p.Gly12Cys
+                    match = re.match(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})?", hgvsp)
+                    if not match:
                         continue
+
+                    ref_aa_3 = match.group(1)
+                    pos = match.group(2)
+                    alt_aa_3 = match.group(3)
+
+                    # Skip synonymous mutations (e.g., p.Tyr516Tyr)
+                    if alt_aa_3 and ref_aa_3 == alt_aa_3:
+                        continue
+
+                    ref_aa_1 = AA3_TO_1.get(ref_aa_3)
+                    alt_aa_1 = AA3_TO_1.get(alt_aa_3) if alt_aa_3 else None
 
                     # Add full term: e.g., 'KRAS p.Gly12Cys'
                     term_set.add(f"{gene} {hgvsp}")
 
-                    # Add short form: e.g., 'KRAS G12'
-                    match = re.match(r"p\.\D+(\d+)", hgvsp)
-                    if match:
-                        term_set.add(f"{gene} G{match.group(1)}")
+                    # Add short form(s): e.g., 'KRAS G12' and 'KRAS G12C'
+                    if ref_aa_1:
+                        term_set.add(f"{gene} {ref_aa_1}{pos}")
+                        if alt_aa_1:
+                            term_set.add(f"{gene} {ref_aa_1}{pos}{alt_aa_1}")
 
     return sorted(term_set)
