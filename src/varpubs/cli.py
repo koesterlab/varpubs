@@ -51,7 +51,7 @@ def main():
     - 'deploy-db': Parses VCFs and populates the DuckDB database with PubMed entries.
     - 'summarize-variants': Summarizes articles related to variants using an LLM model.
     """
-    parser = ArgumentParser()
+    parser = ArgumentParser(add_option_string_dash_variants=DashVariant.DASH)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     parser.add_argument(
