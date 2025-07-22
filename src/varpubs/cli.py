@@ -32,6 +32,7 @@ class SummarizeArgs:
     - api_key: Hugging Face API token for model access.
     - llm_url: Base URL for LLM API (Must follow the openai API format)
     - model: The LLM model used for summarization (default: teuken-7b-instruct-research).
+    - role: The professional role or perspective the LLM should take (default: physician).
     - output: Optional path to save the final variant summary file (CSV).
     """
 
@@ -40,6 +41,7 @@ class SummarizeArgs:
     api_key: str
     llm_url: str
     model: str = "teuken-7b-instruct-research"
+    role: str = "physician"
     output: Optional[Path] = None
 
 
@@ -93,6 +95,7 @@ def main():
                 api_key=args.args.api_key,
                 model=args.args.model,
                 base_url=args.args.llm_url,
+                role=args.args.role,
             )
         )
 

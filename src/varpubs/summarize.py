@@ -7,6 +7,7 @@ from varpubs.pubmed_db import PubmedArticle
 @dataclass
 class Settings:
     api_key: str
+    role: str
     model: str = "teuken-7b-instruct-research"
     base_url: Optional[str] = None
     max_new_tokens: int = 500
@@ -22,7 +23,7 @@ class PubmedSummarizer:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
     def summarize(self, article: PubmedArticle, term: str) -> str:
-        instruction_text = "You are an oncologist."
+        instruction_text = f"You are an {self.settings.role}."
         input_text = f"Concisely summarize the information in the following text regarding {term} in at most three sentences for your colleagues:\n\nTitle: {article.title}\n\n{article.abstract}"
 
         response = self.client.chat.completions.create(

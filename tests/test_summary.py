@@ -21,7 +21,9 @@ def test_summarization():
     )
 
     settings = Settings(
-        api_key=os.environ["LLM_API_KEY"], base_url=os.environ["LLM_API_BASE_URL"]
+        api_key=os.environ["LLM_API_KEY"],
+        base_url=os.environ["LLM_API_BASE_URL"],
+        role="oncologist",
     )
 
     summarizer = PubmedSummarizer(settings)
