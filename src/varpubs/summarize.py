@@ -21,9 +21,9 @@ class PubmedSummarizer:
     def client(self) -> OpenAI:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
-    def summarize(self, article: PubmedArticle) -> str:
-        instruction_text = "You are a helpful medical expert and assistant that summarizes scientific articles. Only output the summary itself — do absolutely not include any labels like 'Summary:'."
-        input_text = f"Please summarize the following scientific abstract:\n\nTitle: {article.title}\n\n{article.abstract}"
+    def summarize(self, article: PubmedArticle, term: str) -> str:
+        instruction_text = "You are an oncologist."
+        input_text = f"Concisely summarize the information in the following text regarding {term} in at most three sentences for your colleagues:\n\nTitle: {article.title}\n\n{article.abstract}"
 
         response = self.client.chat.completions.create(
             model=self.settings.model,

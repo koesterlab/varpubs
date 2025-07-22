@@ -40,7 +40,7 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = summarizer.summarize(article)
+                summary_text = summarizer.summarize(article, term)
 
                 row = [term, pmid, summary_text, article.doi or "N/A"]
                 rows.append(row)
