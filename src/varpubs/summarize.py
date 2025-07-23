@@ -8,7 +8,7 @@ from varpubs.pubmed_db import PubmedArticle
 class Settings:
     api_key: str
     role: str
-    model: str = "teuken-7b-instruct-research"
+    model: str = "medgemma-27b-it"
     base_url: Optional[str] = None
     max_new_tokens: int = 500
     temperature: float = 0.1
