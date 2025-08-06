@@ -23,7 +23,6 @@ class PubmedSummarizer:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
     def summarize(self, article: PubmedArticle, term: str) -> str:
-
         if not article.abstract.strip():
             return "No abstract available."
 

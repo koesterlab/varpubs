@@ -12,8 +12,9 @@ from varpubs.hgvs_extractor import AA3_TO_1
 
 logger = logging.getLogger(__name__)
 
+
 def _variant_synonyms(term: str):
-    '''Generate equivalent variant spellings (e.g., p.Ser339Leu → Ser339Leu, S339L).'''
+    """Generate equivalent variant spellings (e.g., p.Ser339Leu → Ser339Leu, S339L)."""
     m = re.match(r"^([A-Za-z0-9_-]+)\s+(.*)$", term.strip())
     if not m:
         return None, []
@@ -37,12 +38,14 @@ def _variant_synonyms(term: str):
 
     return gene, list(syns)
 
+
 def _normalize_tokens(text: str):
-    '''Lowercase and split text into alphanumeric tokens (punctuation-insensitive).'''
+    """Lowercase and split text into alphanumeric tokens (punctuation-insensitive)."""
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
 
+
 def matches_variant_loose(term: str, text: str, token_window: int = 40) -> bool:
-    '''Loose match: gene and any variant synonym must appear within a token window.'''
+    """Loose match: gene and any variant synonym must appear within a token window."""
     gene, syns = _variant_synonyms(term)
     if not gene:
         return False
@@ -56,11 +59,13 @@ def matches_variant_loose(term: str, text: str, token_window: int = 40) -> bool:
         return False
 
     def seq_positions(seq_tokens):
-        '''Find start positions where seq_tokens appear consecutively in tokens.'''
+        """Find start positions where seq_tokens appear consecutively in tokens."""
         L = len(seq_tokens)
         if L == 0:
             return []
-        return [i for i in range(len(tokens) - L + 1) if tokens[i:i+L] == seq_tokens]
+        return [
+            i for i in range(len(tokens) - L + 1) if tokens[i : i + L] == seq_tokens
+        ]
 
     for s in syns:
         seq = _normalize_tokens(s)
@@ -75,8 +80,10 @@ def matches_variant_loose(term: str, text: str, token_window: int = 40) -> bool:
                     return True
     return False
 
+
 class PubmedArticle(SQLModel, table=True):
-    '''Normalized PubMed article metadata stored locally.'''
+    """Normalized PubMed article metadata stored locally."""
+
     pmid: int = Field(Integer, primary_key=True, nullable=False)
     title: str
     abstract: str
@@ -87,21 +94,24 @@ class PubmedArticle(SQLModel, table=True):
 
 
 class TermToPMID(SQLModel, table=True):
-    '''Mapping between extracted VCF term and matched PMID (composite PK).'''
+    """Mapping between extracted VCF term and matched PMID (composite PK)."""
+
     term: str = Field(nullable=False, primary_key=True)
     pmid: int = Field(Integer, nullable=False, primary_key=True)
     gene: str = Field(nullable=False, primary_key=True)
 
+
 @dataclass
 class PubmedDB:
-    '''End-to-end pipeline: extract terms → search PubMed → store articles → map terms.'''
+    """End-to-end pipeline: extract terms → search PubMed → store articles → map terms."""
+
     path: Path
     vcf_paths: Iterable[Path]
     email: str
     _engine: Optional[sqlalchemy.engine.base.Engine] = field(init=False, default=None)
 
     def deploy(self) -> None:
-        '''Create/update DB, fetch articles, and populate term-to-PMID links.'''
+        """Create/update DB, fetch articles, and populate term-to-PMID links."""
         logger.info(f"Deploying database at: {self.path}")
         logger.info(f"Input VCF paths: {[str(p) for p in self.vcf_paths]}")
         logger.info(f"Entrez email: {self.email}")
@@ -110,7 +120,7 @@ class PubmedDB:
         terms = self.extract_terms()
         Entrez.email = self.email
 
-        '''A) Single OR query for all terms to reduce API calls.'''
+        """A) Single OR query for all terms to reduce API calls."""
         query = " OR ".join(f'"{term}"' for term in terms)
         try:
             handle = Entrez.esearch(db="pubmed", term=query, retmax=500)
@@ -121,10 +131,10 @@ class PubmedDB:
             return
 
         with Session(self.engine) as session:
-            '''B) Batch-fetch article metadata for all PMIDs.'''
+            """B) Batch-fetch article metadata for all PMIDs."""
             self.fetch_articles_metadata(session, pmids)
 
-            '''C) Build Term→PMID using loose matching on title+abstract.'''
+            """C) Build Term→PMID using loose matching on title+abstract."""
             term_to_pmids = {}
             for pmid in pmids:
                 article = session.exec(
@@ -132,14 +142,14 @@ class PubmedDB:
                 ).first()
                 if not article:
                     continue
-                title_abstract = (article.title + " " + article.abstract)
+                title_abstract = article.title + " " + article.abstract
 
                 for term in terms:
                     if matches_variant_loose(term, title_abstract):
                         gene = term.split()[0]
                         term_to_pmids.setdefault(term, []).append((pmid, gene))
 
-            '''D) Upsert mappings (composite PK prevents duplicates).'''
+            """D) Upsert mappings (composite PK prevents duplicates)."""
             for term, pmid_gene_list in term_to_pmids.items():
                 for pmid, gene in pmid_gene_list:
                     exists = session.exec(
@@ -155,9 +165,8 @@ class PubmedDB:
             session.commit()
             logger.info("Data committed to the database.")
 
-
     def create_tables(self) -> None:
-        '''Create tables if missing; safe to call multiple times.'''
+        """Create tables if missing; safe to call multiple times."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.info("Creating or updating tables...")
@@ -169,14 +178,14 @@ class PubmedDB:
             logger.info("Existing database found. Tables checked or updated.")
 
     def extract_terms(self) -> set[str]:
-        '''Extract HGVS protein terms and short forms from annotated VCFs.'''
+        """Extract HGVS protein terms and short forms from annotated VCFs."""
         terms = set()
         for vcf_path in self.vcf_paths:
             terms.update(extract_hgvsp_from_vcf(str(vcf_path)))
         return terms
 
     def fetch_articles_metadata(self, session: Session, pmids: list[int]) -> None:
-        '''Fetch PubMed metadata in batches and store any missing articles.'''
+        """Fetch PubMed metadata in batches and store any missing articles."""
         BATCH_SIZE = 50
         for i in range(0, len(pmids), BATCH_SIZE):
             batch = pmids[i : i + BATCH_SIZE]
@@ -203,7 +212,7 @@ class PubmedDB:
                 logger.error(f"Batch fetch failed for PMIDs {batch}: {e}")
 
     def parse_article(self, article: dict, pmid: int) -> Optional[PubmedArticle]:
-        '''Parse MEDLINE XML into PubmedArticle; tolerate missing fields.'''
+        """Parse MEDLINE XML into PubmedArticle; tolerate missing fields."""
         try:
             title = article.get("ArticleTitle", "")
             abstract = ""
@@ -267,7 +276,7 @@ class PubmedDB:
 
     @property
     def engine(self) -> sqlalchemy.engine.base.Engine:
-        '''Lazy-create SQLAlchemy engine for DuckDB.'''
+        """Lazy-create SQLAlchemy engine for DuckDB."""
         if self._engine is None:
             self._engine = sqlalchemy.create_engine(f"duckdb:///{self.path}")
         return self._engine
