@@ -28,3 +28,7 @@ jobs:
           if: always()
           run: |
             pixi run typecheck
+        - name test
+          if: always()
+          run: |
+            pixi run test

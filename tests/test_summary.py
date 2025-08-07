@@ -1,6 +1,7 @@
 from varpubs.pubmed_db import PubmedArticle
 from varpubs.summarize import PubmedSummarizer, Settings
 import os
+import pytest
 
 ARTICLE = article = PubmedArticle(
     pmid=12345678,
@@ -18,33 +19,42 @@ ARTICLE = article = PubmedArticle(
     doi="10.1016/j.esmoop.2024.102945",
 )
 
-SETTINGS = Settings(
-    api_key=os.environ["LLM_API_KEY"],
-    base_url=os.environ["LLM_API_BASE_URL"],
-    role="oncologist",
+def settings():
+    return Settings(
+        api_key=os.environ["LLM_API_KEY"],
+        base_url=os.environ["LLM_API_BASE_URL"],
+        role="oncologist",
+    )
+
+skip_if_no_api_key = pytest.mark.skipif(
+    not os.environ.get("LLM_API_KEY"), reason="requires LLM_API_KEY"
 )
 
 
+@skip_if_no_api_key
 def test_summarization():
-    summarizer = PubmedSummarizer(SETTINGS)
+    summarizer = PubmedSummarizer(settings())
     summary = summarizer.summarize(ARTICLE, "G12")
     assert summary
 
 
+@skip_if_no_api_key
 def test_negative_summary_validation():
-    summarizer = PubmedSummarizer(SETTINGS)
+    summarizer = PubmedSummarizer(settings())
     summary = "The paper validates the impact of rainbows per day (RPD) in western countries on cancer survival while eating ice cream."
     assert not summarizer.validate_summary(ARTICLE.abstract, summary)
 
 
+@skip_if_no_api_key
 def test_negative_summary_validation_hard():
-    summarizer = PubmedSummarizer(SETTINGS)
+    summarizer = PubmedSummarizer(settings())
     summary = "The SUNLIGHT trial showed that BRAF V600E mutations did impact OS in patients with refractory metastatic colorectal cancer treated with trifluridine/tipiracil plus bevacizumab."
     assert not summarizer.validate_summary(ARTICLE.abstract, summary)
 
 
+@skip_if_no_api_key
 def test_positive_summary_validation():
-    summarizer = PubmedSummarizer(SETTINGS)
+    summarizer = PubmedSummarizer(settings())
     summary = """The SUNLIGHT trial showed that KRASG12 mutations did not impact OS in patients with refractory metastatic colorectal cancer treated with trifluridine/tipiracil plus bevacizumab.
     The benefit of FTD/TPI plus bevacizumab over FTD/TPI alone was confirmed independently of KRASG12 mutational status."""
     assert summarizer.validate_summary(ARTICLE.abstract, summary)
