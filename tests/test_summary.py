@@ -19,12 +19,14 @@ ARTICLE = article = PubmedArticle(
     doi="10.1016/j.esmoop.2024.102945",
 )
 
+
 def settings():
     return Settings(
         api_key=os.environ["LLM_API_KEY"],
         base_url=os.environ["LLM_API_BASE_URL"],
         role="oncologist",
     )
+
 
 skip_if_no_api_key = pytest.mark.skipif(
     not os.environ.get("LLM_API_KEY"), reason="requires LLM_API_KEY"
