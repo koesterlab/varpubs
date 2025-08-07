@@ -49,3 +49,6 @@ dev = { features = ["dev"] }
 
 [tool.pixi.dependencies]
 cyvcf2 = ">=0.31.1,<0.32"
+pip = ">=25.1.1,<26"
+openai = ">=1.97.0,<2"
+pytest = ">=8.4.1,<9"
