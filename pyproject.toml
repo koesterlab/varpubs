@@ -1,9 +1,22 @@
 [project]
-authors = [{name = "Johannes Koester", email = "johannes.koester@uni-due.de"}]
+authors = [
+  { name = "Ilmay Tas", email = "ilmay.tas@ug.bilkent.edu.tr" },
+  { name = "Felix Wiegand", email = "felix.wiegand@tu-dortmund.de" },
+  { name = "Johannes Koester", email = "johannes.koester@uni-due.de" }
+]
 name = "varpubs"
 requires-python = ">= 3.11"
 version = "0.1.0"
-dependencies = ["sqlmodel>=0.0.24,<0.0.25", "sqlalchemy>=2.0.39,<3", "duckdb-engine>=0.15.0,<0.16", "duckdb>=1.2.1,<2", "typed-argument-parser>=1.10.1,<2", "simple-parsing", "huggingface-hub>=0.20.0,<1"]
+dependencies = [
+    "sqlmodel>=0.0.24,<0.0.25",
+    "sqlalchemy>=2.0.39,<3",
+    "duckdb-engine>=0.15.0,<0.16",
+    "duckdb>=1.2.1,<2",
+    "typed-argument-parser>=1.10.1,<2",
+    "simple-parsing",
+    "biopython>=1.85,<2",
+    "openai>=1.97.0,<2",
+]
 
 [project.scripts]
 varpubs = "varpubs.cli:main"
@@ -14,7 +27,7 @@ requires = ["hatchling"]
 
 [tool.pixi.workspace]
 channels = ["conda-forge", "bioconda"]
-platforms = ["linux-64", "osx-64"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
 
 [tool.pixi.pypi-dependencies]
 varpubs = { path = ".", editable = true }
@@ -33,3 +46,9 @@ pytest = "*"
 
 [tool.pixi.environments]
 dev = { features = ["dev"] }
+
+[tool.pixi.dependencies]
+cyvcf2 = ">=0.31.1,<0.32"
+pip = ">=25.1.1,<26"
+openai = ">=1.97.0,<2"
+pytest = ">=8.4.1,<9"
