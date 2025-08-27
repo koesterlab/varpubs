@@ -56,6 +56,11 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
             for ann_entry in ann.split(","):
                 fields = ann_entry.split("|")
                 if len(fields) > max(hgvsp_index, gene_index):
+                    if not fields[hgvsp_index]:
+                        logger.warning(
+                            f"HGVSp entry is empty: {ann_entry}"
+                        )
+                        continue
                     hgvsp = fields[hgvsp_index].split(":")[1]
                     gene = fields[gene_index]
                     if not hgvsp.startswith("p."):
