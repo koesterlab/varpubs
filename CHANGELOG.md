@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/koesterlab/varpubs/compare/v0.1.1...v0.1.2) (2025-08-27)
+
+
+### Bug Fixes
+
+* fixed annotation queries and set api-key default ([#8](https://github.com/koesterlab/varpubs/issues/8)) ([7a2ac48](https://github.com/koesterlab/varpubs/commit/7a2ac481ef19d81f78881277398c104ed68bd801))
+
 ## [0.1.1](https://github.com/koesterlab/varpubs/compare/v0.1.0...v0.1.1) (2025-08-27)
 
 
