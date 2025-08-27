@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/koesterlab/varpubs/compare/v0.1.0...v0.1.1) (2025-08-27)
+
+
+### Documentation
+
+* Add MIT License to the project ([#6](https://github.com/koesterlab/varpubs/issues/6)) ([23da841](https://github.com/koesterlab/varpubs/commit/23da841e10fa4b21c1c85b86c3bb5f3db0fb6f33))
+
 ## 0.1.0 (2025-08-26)
 
 
