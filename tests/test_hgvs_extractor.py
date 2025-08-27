@@ -7,8 +7,8 @@ from varpubs.hgvs_extractor import get_annotation_field_index, extract_hgvsp_fro
 def test_get_annotation_field_index():
     vcf_path = Path("tests/resources/annotated.vcf")
     vcf = VCF(str(vcf_path))
-    assert get_annotation_field_index(vcf, "HGVS.p") == 10
-    assert get_annotation_field_index(vcf, "Gene_Name") == 3
+    assert get_annotation_field_index(vcf, "HGVSp") == 10
+    assert get_annotation_field_index(vcf, "SYMBOL") == 3
 
 
 def test_extract_hgvsp_from_vcf():

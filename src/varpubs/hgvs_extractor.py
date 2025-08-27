@@ -1,6 +1,8 @@
 import re
+import logging
 from cyvcf2 import VCF
 
+logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
 AA3_TO_1 = {
     "Ala": "A",
@@ -44,8 +46,8 @@ def get_annotation_field_index(vcf: VCF, field: str) -> int:
 
 def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
     vcf = VCF(vcf_path)
-    hgvsp_index = get_annotation_field_index(vcf, "HGVS.p")
-    gene_index = get_annotation_field_index(vcf, "Gene_Name")
+    hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
+    gene_index = get_annotation_field_index(vcf, "SYMBOL")
     term_set = set()
 
     for record in vcf:
@@ -54,10 +56,15 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
             for ann_entry in ann.split(","):
                 fields = ann_entry.split("|")
                 if len(fields) > max(hgvsp_index, gene_index):
-                    hgvsp = fields[hgvsp_index]
+                    if not fields[hgvsp_index]:
+                        logger.warning(f"HGVSp entry is empty: {ann_entry}")
+                        continue
+                    hgvsp = fields[hgvsp_index].split(":")[1]
                     gene = fields[gene_index]
-
                     if not hgvsp.startswith("p."):
+                        logger.warning(
+                            f"HGVSp entry does not seem to be valid: {hgvsp}"
+                        )
                         continue
 
                     # Match full HGVS.p format: e.g., p.Gly12Cys
