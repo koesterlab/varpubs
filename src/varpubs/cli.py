@@ -38,10 +38,10 @@ class SummarizeArgs:
 
     db_path: Path
     vcf_path: Path
-    api_key: str
     llm_url: str
     model: str = "medgemma-27b-it"
     role: str = "physician"
+    api_key: Optional[str] = ""
     output: Optional[Path] = None
 
 
