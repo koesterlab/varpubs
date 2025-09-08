@@ -121,7 +121,14 @@ class PubmedDB:
         Entrez.email = self.email
 
         """A) Single OR query for all terms to reduce API calls."""
-        query = " OR ".join(f'"{term}"' for term in terms)
+        query_terms = set()
+        for term in terms:
+            query_terms.add(term)
+            gene, syns = _variant_synonyms(term)
+            if gene:
+                for s in syns:
+                    query_terms.add(f"{gene} {s}")
+        query = " OR ".join(f'"{qterm}"' for qterm in query_terms)
         try:
             handle = Entrez.esearch(db="pubmed", term=query, retmax=500)
             record = cast(dict, Entrez.read(handle))
