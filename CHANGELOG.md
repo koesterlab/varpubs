@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/koesterlab/varpubs/compare/v0.1.2...v0.2.0) (2025-09-08)
+
+
+### Features
+
+* Summarize across all evidence for one specific variant of interest ([#13](https://github.com/koesterlab/varpubs/issues/13)) ([13743fd](https://github.com/koesterlab/varpubs/commit/13743fd1f11ccdad5d37d1384d503483d0a1370e))
+
+
+### Bug Fixes
+
+* Clean up term set while still searching pubmed for synonyms ([#12](https://github.com/koesterlab/varpubs/issues/12)) ([d79595f](https://github.com/koesterlab/varpubs/commit/d79595f6e307014874995f243c4d5da3f641a13c))
+* Fix DOI extraction from ELocationID in PubmedDB ([#10](https://github.com/koesterlab/varpubs/issues/10)) ([2771fbb](https://github.com/koesterlab/varpubs/commit/2771fbbad9eca36b6ff700db9bd39a13ab3121c6))
+
 ## [0.1.2](https://github.com/koesterlab/varpubs/compare/v0.1.1...v0.1.2) (2025-08-27)
 
 
