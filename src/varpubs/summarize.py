@@ -23,11 +23,34 @@ class PubmedSummarizer:
     def client(self) -> OpenAI:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
-    def summarize(self, article: PubmedArticle, term: str) -> str:
+    def instruction(self) -> str:
+        return f"You are an {self.settings.role}."
+
+    def summarize(self, texts: list[tuple[PubmedArticle, str]], term: str) -> str:
+        summaries = "\n".join(
+            f"{article.pmid}: {summary}" for article, summary in texts
+        )
+        input_text = (
+            f"Take the following summaries of PubMed articles related to {term}"
+            "and summarize them in a single paragraph while ensuring that the summary is concise and informative."
+            "When using information from the summaries, cite the PMID of the article."
+            f"{summaries}"
+        )
+        response = self.client.chat.completions.create(
+            model=self.settings.model,
+            messages=[
+                {"role": "system", "content": self.instruction()},
+                {"role": "user", "content": input_text},
+            ],
+            max_tokens=self.settings.max_new_tokens,
+            temperature=self.settings.temperature,
+        )
+        return str(response.choices[0].message.content)
+
+    def summarize_article(self, article: PubmedArticle, term: str) -> str:
         if not article.abstract or not article.abstract.strip():
             return "No abstract available."
 
-        instruction_text = f"You are an {self.settings.role}."
         input_text = (
             f"Concisely summarize the information in the following text regarding {term} "
             f"in at most three sentences for your colleagues:\n\n"
@@ -37,7 +60,7 @@ class PubmedSummarizer:
         response = self.client.chat.completions.create(
             model=self.settings.model,
             messages=[
-                {"role": "system", "content": instruction_text},
+                {"role": "system", "content": self.instruction()},
                 {"role": "user", "content": input_text},
             ],
             temperature=self.settings.temperature,

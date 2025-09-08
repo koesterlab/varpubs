@@ -27,12 +27,12 @@ def summarize_variants(
         rows = []
 
         for term in terms:
-            logging.info(f"Variant term: {term}")
+            logging.info(f"Summarizing abstracts for variant term: {term}")
             mappings = session.exec(
                 select(TermToPMID).where(TermToPMID.term == term)
             ).all()
             pmids = set(m.pmid for m in mappings)
-
+            summaries = []
             for pmid in pmids:
                 article = session.exec(
                     select(PubmedArticle).where(PubmedArticle.pmid == pmid)
@@ -40,13 +40,16 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = summarizer.summarize(article, term)
-
-                row = [term, pmid, summary_text, article.doi or "N/A"]
-                rows.append(row)
+                summary_text = summarizer.summarize_article(article, term)
+                summaries.append(tuple([article, summary_text]))
+            if summaries:
+                summary = summarizer.summarize(summaries, term)
+                rows.append(
+                    tuple([term, ",".join(f"{pmid}" for pmid in pmids), summary])
+                )
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["Variant", "PMID", "Summary", "DOI"])
+                writer.writerow(["Variant", "PMIDs", "Summary"])
                 writer.writerows(rows)

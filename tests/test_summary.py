@@ -36,7 +36,7 @@ skip_if_no_api_key = pytest.mark.skipif(
 @skip_if_no_api_key
 def test_summarization():
     summarizer = PubmedSummarizer(settings())
-    summary = summarizer.summarize(ARTICLE, "G12")
+    summary = summarizer.summarize_article(ARTICLE, "G12")
     assert summary
 
 
