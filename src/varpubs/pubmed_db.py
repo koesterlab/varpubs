@@ -263,7 +263,6 @@ class PubmedDB:
                             break
             except Exception as e:
                 logger.warning(f"DOI parse failed for PMID {pmid}: {e}")
-            print(doi)
             return PubmedArticle(
                 pmid=pmid,
                 title=title,
