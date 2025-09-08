@@ -256,11 +256,14 @@ class PubmedDB:
             doi = ""
             try:
                 eloc = article.get("ELocationID", [{}])
-                if isinstance(eloc, list) and eloc and isinstance(eloc[0], dict):
-                    doi = eloc[0].get("#text", "")
+                if isinstance(eloc, list):
+                    for e in eloc:
+                        if getattr(e, "attributes", {}).get("EIdType") == "doi":
+                            doi = str(e)
+                            break
             except Exception as e:
                 logger.warning(f"DOI parse failed for PMID {pmid}: {e}")
-
+            print(doi)
             return PubmedArticle(
                 pmid=pmid,
                 title=title,
