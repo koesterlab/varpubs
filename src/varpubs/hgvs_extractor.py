@@ -70,26 +70,19 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
                     # Match full HGVS.p format: e.g., p.Gly12Cys
                     match = re.match(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})?", hgvsp)
                     if not match:
+                        logger.warning(
+                            f"HGVSp entry does not seem to be valid: {hgvsp}"
+                        )
                         continue
 
                     ref_aa_3 = match.group(1)
-                    pos = match.group(2)
                     alt_aa_3 = match.group(3)
 
                     # Skip synonymous mutations (e.g., p.Tyr516Tyr)
                     if alt_aa_3 and ref_aa_3 == alt_aa_3:
                         continue
 
-                    ref_aa_1 = AA3_TO_1.get(ref_aa_3)
-                    alt_aa_1 = AA3_TO_1.get(alt_aa_3) if alt_aa_3 else None
-
-                    # Add full term: e.g., 'KRAS p.Gly12Cys'
+                    # Only add the full HGVS.p form variant e.g., 'KRAS p.Gly12Cys'
                     term_set.add(f"{gene} {hgvsp}")
-
-                    # Add short form(s): e.g., 'KRAS G12' and 'KRAS G12C'
-                    if ref_aa_1:
-                        term_set.add(f"{gene} {ref_aa_1}{pos}")
-                        if alt_aa_1:
-                            term_set.add(f"{gene} {ref_aa_1}{pos}{alt_aa_1}")
 
     return sorted(term_set)
