@@ -62,13 +62,17 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
                     hgvsp = fields[hgvsp_index].split(":")[1]
                     gene = fields[gene_index]
                     if not hgvsp.startswith("p."):
-                        logger.warning(f"HGVSp entry does not seem to be valid: {hgvsp}")
+                        logger.warning(
+                            f"HGVSp entry does not seem to be valid: {hgvsp}"
+                        )
                         continue
 
                     # Match full HGVS.p format: e.g., p.Gly12Cys
                     match = re.match(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})?", hgvsp)
                     if not match:
-                        logger.warning(f"HGVSp entry does not seem to be valid: {hgvsp}")
+                        logger.warning(
+                            f"HGVSp entry does not seem to be valid: {hgvsp}"
+                        )
                         continue
 
                     ref_aa_3 = match.group(1)
