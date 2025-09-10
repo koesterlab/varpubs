@@ -44,12 +44,15 @@ def summarize_variants(
                 summaries.append(tuple([article, summary_text]))
             if summaries:
                 summary = summarizer.summarize(summaries, term)
+                gene, symbol = term.split(" ")
                 rows.append(
-                    tuple([term, ",".join(f"{pmid}" for pmid in pmids), summary])
+                    tuple(
+                        [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
+                    )
                 )
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["Variant", "PMIDs", "Summary"])
+                writer.writerow(["symbol", "hgvsp", "summary", "pmids"])
                 writer.writerows(rows)
