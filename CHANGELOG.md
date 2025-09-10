@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/koesterlab/varpubs/compare/v0.2.0...v0.2.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* Split variant term into gene and hgvsp in output CSV and rename and reorder columns ([#14](https://github.com/koesterlab/varpubs/issues/14)) ([0ffbfd0](https://github.com/koesterlab/varpubs/commit/0ffbfd0ba7833128abd1e284a21366e6ab83bee3))
+
 ## [0.2.0](https://github.com/koesterlab/varpubs/compare/v0.1.2...v0.2.0) (2025-09-08)
 
 
