@@ -46,7 +46,9 @@ def summarize_variants(
                 summary = summarizer.summarize(summaries, term)
                 gene, symbol = term.split(" ")
                 rows.append(
-                    tuple([gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)])
+                    tuple(
+                        [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
+                    )
                 )
 
         if out_path:
