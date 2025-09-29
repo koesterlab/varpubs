@@ -15,11 +15,13 @@ class DeployDBArgs:
     - db_path: Path to the DuckDB database file to be created or updated.
     - vcf_paths: List of VCF files containing variant information.
     - email: Email address used for Entrez API access.
+    - batch_size: Number of terms to query at a time (default: 5).
     """
 
     db_path: Path
     vcf_paths: List[Path]
     email: str
+    batch_size: int = 5
 
 
 @dataclass
@@ -83,7 +85,10 @@ def main():
 
     if args.command == "deploy-db":
         db = PubmedDB(
-            path=args.args.db_path, vcf_paths=args.args.vcf_paths, email=args.args.email
+            path=args.args.db_path,
+            vcf_paths=args.args.vcf_paths,
+            email=args.args.email,
+            batch_size=args.args.batch_size,
         )
         db.deploy()
 
