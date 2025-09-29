@@ -108,6 +108,7 @@ class PubmedDB:
     path: Path
     vcf_paths: Iterable[Path]
     email: str
+    batch_size: int = 5
     _engine: Optional[sqlalchemy.engine.base.Engine] = field(init=False, default=None)
 
     def deploy(self) -> None:
@@ -120,22 +121,37 @@ class PubmedDB:
         terms = self.extract_terms()
         Entrez.email = self.email
 
-        """A) Single OR query for all terms to reduce API calls."""
-        query_terms = set()
-        for term in terms:
-            query_terms.add(term)
-            gene, syns = _variant_synonyms(term)
-            if gene:
-                for s in syns:
-                    query_terms.add(f"{gene} {s}")
-        query = " OR ".join(f'"{qterm}"' for qterm in query_terms)
-        try:
-            handle = Entrez.esearch(db="pubmed", term=query, retmax=500)
-            record = cast(dict, Entrez.read(handle))
-            pmids = list(map(int, record.get("IdList", [])))
-        except Exception as e:
-            logger.error(f"Error querying PubMed: {e}")
-            return
+        pmids = []
+        batches = [
+            list(terms)[i : i + self.batch_size]
+            for i in range(0, len(terms), self.batch_size)
+        ]
+        for batch in batches:
+            # Concatenetante all variants in one batch via OR query to reduce API calls.
+            logger.info(f"Querying PubMed for batch {batch}")
+            query_terms = set()
+            for term in batch:
+                query_terms.add(term)
+                gene, syns = _variant_synonyms(term)
+                if gene:
+                    for s in syns:
+                        query_terms.add(f"{gene} {s}")
+            query = " OR ".join(f'"{qterm}"' for qterm in query_terms)
+            try:
+                retmax = 10000
+                handle = Entrez.esearch(db="pubmed", term=query, retmax=retmax)
+                record = cast(dict, Entrez.read(handle))
+                fetched_pmids = list(map(int, record.get("IdList", [])))
+                if len(fetched_pmids) == retmax:
+                    logger.warning(
+                        f"PubMed API limit reached for batch {batch}. Consider decreasing batch size parameter."
+                    )
+                pmids.extend(fetched_pmids)
+            except Exception as e:
+                logger.error(f"Error querying PubMed: {e}")
+                return
+
+        logger.info(f"Found {len(pmids)} PMIDs")
 
         with Session(self.engine) as session:
             """B) Batch-fetch article metadata for all PMIDs."""
@@ -193,9 +209,12 @@ class PubmedDB:
 
     def fetch_articles_metadata(self, session: Session, pmids: list[int]) -> None:
         """Fetch PubMed metadata in batches and store any missing articles."""
-        BATCH_SIZE = 50
-        for i in range(0, len(pmids), BATCH_SIZE):
+        BATCH_SIZE = 250
+        for idx, i in enumerate(range(0, len(pmids), BATCH_SIZE), start=1):
             batch = pmids[i : i + BATCH_SIZE]
+            logger.info(
+                f"Fetching metadata for batch {idx}/{(len(pmids) + BATCH_SIZE - 1) // BATCH_SIZE}"
+            )
             try:
                 fetch = Entrez.efetch(
                     db="pubmed",
