@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/koesterlab/varpubs/compare/v0.2.1...v0.2.2) (2025-09-29)
+
+
+### Bug Fixes
+
+* Add batch_size parameter for PubMed queries ([#16](https://github.com/koesterlab/varpubs/issues/16)) ([e09880e](https://github.com/koesterlab/varpubs/commit/e09880eff2a40e7c43b65e7ed054ceb794202362))
+
 ## [0.2.1](https://github.com/koesterlab/varpubs/compare/v0.2.0...v0.2.1) (2025-09-10)
 
 
