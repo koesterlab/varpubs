@@ -53,9 +53,7 @@ def summarize_variants(
                 key=lambda x: sum(x[1]["scores"].values()) / len(x[1]["scores"]),
                 reverse=True,
             )[:50]
-            top_summaries = [
-                (pmid, data["summary"]) for pmid, data in top_summaries
-            ]
+            top_summaries = [(pmid, data["summary"]) for pmid, data in top_summaries]
 
             if top_summaries:
                 summary = summarizer.summarize(top_summaries, term)
