@@ -13,6 +13,7 @@ def summarize_variants(
     vcf_path: Path,
     summarizer: PubmedSummarizer,
     out_path: Optional[Path] = None,
+    judges: Optional[list[str]] = None,
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
@@ -32,7 +33,7 @@ def summarize_variants(
                 select(TermToPMID).where(TermToPMID.term == term)
             ).all()
             pmids = set(m.pmid for m in mappings)
-            summaries = []
+            summaries = {}
             for pmid in pmids:
                 article = session.exec(
                     select(PubmedArticle).where(PubmedArticle.pmid == pmid)
@@ -41,9 +42,23 @@ def summarize_variants(
                     continue
 
                 summary_text = summarizer.summarize_article(article, term)
-                summaries.append(tuple([article, summary_text]))
-            if summaries:
-                summary = summarizer.summarize(summaries, term)
+                scores = {}
+                if not judges:
+                    judges = []
+                for judge in judges:
+                    scores[judge] = summarizer.judge(article, judge)
+                summaries[pmid] = {"summary": summary_text, "scores": scores}
+            top_summaries = sorted(
+                summaries.items(),
+                key=lambda x: sum(x[1]["scores"].values()) / len(x[1]["scores"]),
+                reverse=True,
+            )[:50]
+            top_summaries = [
+                (pmid, data["summary"]) for pmid, data in top_summaries
+            ]
+
+            if top_summaries:
+                summary = summarizer.summarize(top_summaries, term)
                 gene, symbol = term.split(" ")
                 rows.append(
                     tuple(

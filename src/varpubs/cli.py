@@ -32,6 +32,7 @@ class SummarizeArgs:
     - db_path: Path to the existing DuckDB database file.
     - vcf_path: A single annotated VCF file with variant terms.
     - api_key: Hugging Face API token for model access.
+    - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
     - llm_url: Base URL for LLM API (Must follow the openai API format)
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
@@ -43,6 +44,7 @@ class SummarizeArgs:
     llm_url: str
     model: str = "medgemma-27b-it"
     role: str = "physician"
+    judges: Optional[list[str]] = None
     api_key: Optional[str] = ""
     output: Optional[Path] = None
 
@@ -108,5 +110,6 @@ def main():
             db_path=args.args.db_path,
             vcf_path=args.args.vcf_path,
             summarizer=summarizer,
+            judges=args.args.judges,
             out_path=args.args.output,
         )
