@@ -34,6 +34,13 @@ skip_if_no_api_key = pytest.mark.skipif(
 
 
 @skip_if_no_api_key
+def test_judgment():
+    summarizer = PubmedSummarizer(settings())
+    score = summarizer.judge(ARTICLE, "therapy related")
+    assert score > 5
+
+
+@skip_if_no_api_key
 def test_summarization():
     summarizer = PubmedSummarizer(settings())
     summary = summarizer.summarize_article(ARTICLE, "G12")

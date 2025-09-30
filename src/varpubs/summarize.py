@@ -1,8 +1,8 @@
-# src/varpubs/summarize.py
 from dataclasses import dataclass
 from typing import Optional
 from openai import OpenAI
 from varpubs.pubmed_db import PubmedArticle
+import re
 
 
 @dataclass
@@ -67,6 +67,31 @@ class PubmedSummarizer:
             max_tokens=self.settings.max_new_tokens,
         )
         return str(response.choices[0].message.content)
+
+    def judge(self, article: PubmedArticle, term: str) -> int:
+        input_text = (
+            f"Please judge the relevance of the following abstract to the term '{term}' on a scale of 1 to 100 where 1 is least relevant and 100 is most relevant:\n\n"
+            f"{article.title}\n\n{article.abstract}"
+            f"\n\nPlease provide your judgment as a number between 1 and 100 and only respond with the number."
+        )
+
+        response = self.client.chat.completions.create(
+            model=self.settings.model,
+            messages=[
+                {"role": "system", "content": self.instruction()},
+                {"role": "user", "content": input_text},
+            ],
+            temperature=self.settings.temperature,
+            max_tokens=self.settings.max_new_tokens,
+        )
+        raw = response.choices[0].message.content or ""
+
+        match = re.search(r"\d{1,3}", raw)
+        if not match:
+            raise ValueError(f"Could not parse judgment from model response: {raw}")
+
+        score = int(match.group())
+        return max(1, min(100, score))
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [
