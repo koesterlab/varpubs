@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/koesterlab/varpubs/compare/v0.2.2...v0.3.0) (2025-09-30)
+
+
+### Features
+
+* Add article judging and ranking by relevance score based on judgements ([#18](https://github.com/koesterlab/varpubs/issues/18)) ([6ad3154](https://github.com/koesterlab/varpubs/commit/6ad31541355e3f519ab95c39cb7676d9dd1b2991))
+
 ## [0.2.2](https://github.com/koesterlab/varpubs/compare/v0.2.1...v0.2.2) (2025-09-29)
 
 
