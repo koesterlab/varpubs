@@ -50,7 +50,7 @@ def summarize_variants(
                 summaries[pmid] = {"summary": summary_text, "scores": scores}
             top_summaries = sorted(
                 summaries.items(),
-                key=lambda x: sum(x[1]["scores"].values()) / len(x[1]["scores"]),
+                key=lambda x: sum(x[1]["scores"].values()) if x[1]["scores"] else 0,
                 reverse=True,
             )[:50]
             top_summaries = [(pmid, data["summary"]) for pmid, data in top_summaries]
