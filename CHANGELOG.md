@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/koesterlab/varpubs/compare/v0.3.0...v0.3.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* Fix sorting when scores dict is empty in summarize_variants ([#20](https://github.com/koesterlab/varpubs/issues/20)) ([adad1c7](https://github.com/koesterlab/varpubs/commit/adad1c77287185b1c74a993fca620e36363eba1a))
+
 ## [0.3.0](https://github.com/koesterlab/varpubs/compare/v0.2.2...v0.3.0) (2025-09-30)
 
 
