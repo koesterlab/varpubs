@@ -19,6 +19,19 @@ ARTICLE = article = PubmedArticle(
     doi="10.1016/j.esmoop.2024.102945",
 )
 
+THERAPY_UNRELATED_ARTICLE = PubmedArticle(
+    pmid=435346,
+    title="KRAS Mutations Observed in Blue-Colored Zebrafish Larvae",
+    abstract=(
+        "We sequenced the genomes of blue-colored zebrafish larvae and identified several novel KRAS mutations. "
+        "The study focused exclusively on the distribution of these mutations across developmental stages and pigmentation patterns. "
+    ),
+    authors="A. Nemo et al.",
+    journal="Aquatic Genetics",
+    pub_date="2023-09-15",
+    doi="10.1016/j.esmoop.2024.102945",
+)
+
 
 def settings():
     return Settings(
@@ -34,10 +47,17 @@ skip_if_no_api_key = pytest.mark.skipif(
 
 
 @skip_if_no_api_key
-def test_judgment():
+def test_positive_judgment():
     summarizer = PubmedSummarizer(settings())
     score = summarizer.judge(ARTICLE, "therapy related")
-    assert score > 5
+    assert score > 1
+
+
+@skip_if_no_api_key
+def test_negative_judgment():
+    summarizer = PubmedSummarizer(settings())
+    score = summarizer.judge(THERAPY_UNRELATED_ARTICLE, "therapy unrelated")
+    assert score < 2
 
 
 @skip_if_no_api_key

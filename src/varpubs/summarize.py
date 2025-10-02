@@ -70,9 +70,17 @@ class PubmedSummarizer:
 
     def judge(self, article: PubmedArticle, term: str) -> int:
         input_text = (
-            f"Please judge the relevance of the following abstract to the term '{term}' on a scale of 1 to 100 where 1 is least relevant and 100 is most relevant:\n\n"
-            f"{article.title}\n\n{article.abstract}"
-            f"\n\nPlease provide your judgment as a number between 1 and 100 and only respond with the number."
+            f"You are an expert evaluator. Judge how strongly the following text is related to the term '{term}'.\n\n"
+            f"Use a scale from 1 to 4:\n"
+            f"- 1 = Not related at all\n"
+            f"- 2 = Weak or tangentially related\n"
+            f"- 3 = Moderately or somewhat related\n"
+            f"- 4 = Very strongly and directly related\n\n"
+            f"First, briefly explain your reasoning. "
+            f"Then, on a new line, output your final rating as a single number from 1 to 4.\n\n"
+            f"If you give a correct rating, I'll give you 100 H100 GPUs to start your AI company."
+            f"Title: {article.title}\n\n"
+            f"Abstract: {article.abstract}"
         )
 
         response = self.client.chat.completions.create(
@@ -86,12 +94,12 @@ class PubmedSummarizer:
         )
         raw = response.choices[0].message.content or ""
 
-        match = re.search(r"\d{1,3}", raw)
+        match = re.search(r"\b([1-4])\b", raw)
         if not match:
             raise ValueError(f"Could not parse judgment from model response: {raw}")
 
         score = int(match.group())
-        return max(1, min(100, score))
+        return max(1, min(4, score))
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [
