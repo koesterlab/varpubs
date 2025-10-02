@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/koesterlab/varpubs/compare/v0.3.1...v0.3.2) (2025-10-02)
+
+
+### Bug Fixes
+
+* Use a 1-4 scale for relevance judgments and add brief explanation ([79ea122](https://github.com/koesterlab/varpubs/commit/79ea122240d1a6bb527a2277e4342359b1a2b38f))
+
 ## [0.3.1](https://github.com/koesterlab/varpubs/compare/v0.3.0...v0.3.1) (2025-10-01)
 
 
