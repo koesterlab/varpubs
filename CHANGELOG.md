@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/koesterlab/varpubs/compare/v0.3.1...v0.3.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* Keep full PubmedArticle for top summaries and fix typing issue ([bedef38](https://github.com/koesterlab/varpubs/commit/bedef3838c45aef385a9255b2fbda98bffc90f92))
+* Use a 1-4 scale for relevance judgments and add brief explanation ([79ea122](https://github.com/koesterlab/varpubs/commit/79ea122240d1a6bb527a2277e4342359b1a2b38f))
+
 ## [0.3.1](https://github.com/koesterlab/varpubs/compare/v0.3.0...v0.3.1) (2025-10-01)
 
 
