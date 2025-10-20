@@ -33,8 +33,12 @@ def summarize_variants(
                 select(TermToPMID).where(TermToPMID.term == term)
             ).all()
             pmids = set(m.pmid for m in mappings)
+            logging.info(f"Found {len(pmids)} PubMed IDs for term '{term}'")
             summaries = {}
-            for pmid in pmids:
+            for idx, pmid in enumerate(pmids):
+                logging.info(
+                    f"Fetching PubMed article for PMID {pmid}. Progress: {idx + 1}/{len(pmids)}"
+                )
                 article = session.exec(
                     select(PubmedArticle).where(PubmedArticle.pmid == pmid)
                 ).first()
