@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 from openai import OpenAI
 from varpubs.pubmed_db import PubmedArticle
+from varpubs.cache import Cache
 import re
 import logging
 
@@ -14,6 +15,7 @@ class Settings:
     base_url: Optional[str] = None
     max_new_tokens: int = 500
     temperature: float = 0.1
+    cache: Optional[Cache] = None
 
 
 @dataclass

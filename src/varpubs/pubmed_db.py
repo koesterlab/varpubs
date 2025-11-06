@@ -101,15 +101,6 @@ class TermToPMID(SQLModel, table=True):
     gene: str = Field(nullable=False, primary_key=True)
 
 
-class Summary(SQLModel, table=True):
-    """LLM summary of PubMed article stored locally."""
-
-    term: str = Field(nullable=False, primary_key=True)
-    pmid: int = Field(Integer, nullable=False, primary_key=True)
-    model: str = Field(nullable=False)
-    summary: str = Field(nullable=False)
-
-
 @dataclass
 class PubmedDB:
     """End-to-end pipeline: extract terms → search PubMed → store articles → map terms."""

@@ -1,10 +1,11 @@
 import logging
 import csv
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import Session, select
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from varpubs.pubmed_db import PubmedArticle, Summary, TermToPMID, PubmedDB
+from varpubs.pubmed_db import PubmedArticle, TermToPMID, PubmedDB
+from varpubs.cache import Summary, Cache
 from varpubs.summarize import PubmedSummarizer
 
 
@@ -14,6 +15,7 @@ def summarize_variants(
     summarizer: PubmedSummarizer,
     out_path: Optional[Path] = None,
     judges: Optional[list[str]] = None,
+    output_cache: Optional[Path] = None,
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
@@ -23,6 +25,7 @@ def summarize_variants(
     terms = extract_hgvsp_from_vcf(str(vcf_path))
     db = PubmedDB(path=db_path, vcf_paths=[], email="")
     engine = db.engine
+    cache = summarizer.settings.cache
 
     with Session(engine) as session:
         rows = []
@@ -41,24 +44,14 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = session.exec(
-                    select(Summary).where(
-                        Summary.pmid == pmid,
-                        Summary.term == term,
-                        Summary.model == summarizer.settings.model,
-                    )
-                ).first()
+                summary_text = (
+                    cache.lookup(term, pmid, summarizer.settings.model)
+                    if cache
+                    else None
+                )
 
                 if not summary_text:
                     summary_text = summarizer.summarize_article(article, term)
-                    session.add(
-                        Summary(
-                            pmid=pmid,
-                            term=term,
-                            model=summarizer.settings.model,
-                            summary=summary_text,
-                        )
-                    )
 
                 scores = {}
                 if not judges:
@@ -69,6 +62,7 @@ def summarize_variants(
                         "article": article,
                         "summary": summary_text,
                         "scores": scores,
+                        "term": term,
                     }
             sorted_summaries = sorted(
                 summaries.items(),
@@ -88,7 +82,19 @@ def summarize_variants(
                     )
                 )
 
-        session.commit()
+            if output_cache:
+                ocache = Cache(output_cache)
+                ocache.deploy()
+                s: List[Summary] = [
+                    Summary(
+                        term=data["term"],
+                        pmid=pmid,
+                        model=summarizer.settings.model,
+                        summary=data["summary"],
+                    )
+                    for pmid, data in summaries.items()
+                ]
+                ocache.write(s)
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:

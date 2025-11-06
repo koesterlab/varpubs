@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 from varpubs.pubmed_db import PubmedDB
 from varpubs.summarize import Settings, PubmedSummarizer
+from varpubs.cache import Cache
 
 
 @dataclass
@@ -31,22 +32,26 @@ class SummarizeArgs:
 
     - db_path: Path to the existing DuckDB database file.
     - vcf_path: A single annotated VCF file with variant terms.
+    - cache: Path to the cache file for storing summary results.
     - api_key: Hugging Face API token for model access.
     - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
     - llm_url: Base URL for LLM API (Must follow the openai API format)
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
     - output: Optional path to save the final variant summary file (CSV).
+    - output_cache: Optional path to save the cache file for storing new summary results.
     """
 
     db_path: Path
     vcf_path: Path
+    cache: Optional[Path]
     llm_url: str
     model: str = "medgemma-27b-it"
     role: str = "physician"
     judges: Optional[list[str]] = None
     api_key: Optional[str] = ""
     output: Optional[Path] = None
+    output_cache: Optional[Path] = None
 
 
 def main():
@@ -97,12 +102,15 @@ def main():
     elif args.command == "summarize-variants":
         from varpubs.summarize_variants import summarize_variants
 
+        cache = Cache(args.args.cache) if args.args.cache else None
+
         summarizer = PubmedSummarizer(
             settings=Settings(
                 api_key=args.args.api_key,
                 model=args.args.model,
                 base_url=args.args.llm_url,
                 role=args.args.role,
+                cache=cache,
             )
         )
 
@@ -112,4 +120,5 @@ def main():
             summarizer=summarizer,
             judges=args.args.judges,
             out_path=args.args.output,
+            output_cache=args.args.output_cache,
         )
