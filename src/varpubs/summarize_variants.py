@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 from sqlmodel import Session, select
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from varpubs.pubmed_db import PubmedArticle, TermToPMID, PubmedDB
+from varpubs.pubmed_db import PubmedArticle, Summary, TermToPMID, PubmedDB
 from varpubs.summarize import PubmedSummarizer
 
 
@@ -41,7 +41,25 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = summarizer.summarize_article(article, term)
+                summary_text = session.exec(
+                    select(Summary).where(
+                        Summary.pmid == pmid,
+                        Summary.term == term,
+                        Summary.model == summarizer.settings.model
+                    )
+                ).first()
+
+                if not summary_text:
+                    summary_text = summarizer.summarize_article(article, term)
+                    session.add(
+                        Summary(
+                            pmid=pmid,
+                            term=term,
+                            model=summarizer.settings.model,
+                            summary=summary_text,
+                        )
+                    )
+
                 scores = {}
                 if not judges:
                     judges = []
@@ -69,6 +87,8 @@ def summarize_variants(
                         [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
                     )
                 )
+
+        session.commit()
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
