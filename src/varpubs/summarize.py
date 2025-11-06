@@ -50,7 +50,9 @@ class PubmedSummarizer:
 
     def summarize_article(self, article: PubmedArticle, term: str) -> str:
         if not article.abstract or not article.abstract.strip():
-            logging.warning(f"No abstract available for article '{article.title}' with ID {article.pmid}")
+            logging.warning(
+                f"No abstract available for article '{article.title}' with ID {article.pmid}"
+            )
             return "No abstract available."
 
         input_text = (
@@ -104,7 +106,9 @@ class PubmedSummarizer:
             else:
                 logging.warning(f"Could not parse judgment from model response: {raw}")
 
-        raise ValueError(f"Could not parse judgment from model response after {retries} retries.")
+        raise ValueError(
+            f"Could not parse judgment from model response after {retries} retries."
+        )
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [
