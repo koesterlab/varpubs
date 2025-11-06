@@ -3,6 +3,7 @@ from typing import Optional
 from openai import OpenAI
 from varpubs.pubmed_db import PubmedArticle
 import re
+import logging
 
 
 @dataclass
@@ -49,6 +50,7 @@ class PubmedSummarizer:
 
     def summarize_article(self, article: PubmedArticle, term: str) -> str:
         if not article.abstract or not article.abstract.strip():
+            logging.warning(f"No abstract available for article '{article.title}' with ID {article.pmid}")
             return "No abstract available."
 
         input_text = (
@@ -68,38 +70,41 @@ class PubmedSummarizer:
         )
         return str(response.choices[0].message.content)
 
-    def judge(self, article: PubmedArticle, term: str) -> int:
-        input_text = (
-            f"You are an expert evaluator. Judge how strongly the following text is related to the term '{term}'.\n\n"
-            f"Use a scale from 1 to 4:\n"
-            f"- 1 = Not related at all\n"
-            f"- 2 = Weak or tangentially related\n"
-            f"- 3 = Moderately or somewhat related\n"
-            f"- 4 = Very strongly and directly related\n\n"
-            f"First, briefly explain your reasoning. "
-            f"Then, on a new line, output your final rating as a single number from 1 to 4.\n\n"
-            f"If you give a correct rating, I'll give you 100 H100 GPUs to start your AI company."
-            f"Title: {article.title}\n\n"
-            f"Abstract: {article.abstract}"
-        )
+    def judge(self, article: PubmedArticle, term: str, retries=3) -> int:
+        for _ in range(retries):
+            input_text = (
+                f"You are an expert evaluator. Judge how strongly the following text is related to the term '{term}'.\n\n"
+                f"Use a scale from 1 to 4:\n"
+                f"- 1 = Not related at all\n"
+                f"- 2 = Weak or tangentially related\n"
+                f"- 3 = Moderately or somewhat related\n"
+                f"- 4 = Very strongly and directly related\n\n"
+                f"First, briefly explain your reasoning. "
+                f"Then, on a new line, output your final rating as a single number from 1 to 4.\n\n"
+                f"If you give a correct rating, I'll give you 100 H100 GPUs to start your AI company."
+                f"Title: {article.title}\n\n"
+                f"Abstract: {article.abstract}"
+            )
 
-        response = self.client.chat.completions.create(
-            model=self.settings.model,
-            messages=[
-                {"role": "system", "content": self.instruction()},
-                {"role": "user", "content": input_text},
-            ],
-            temperature=self.settings.temperature,
-            max_tokens=self.settings.max_new_tokens,
-        )
-        raw = response.choices[0].message.content or ""
+            response = self.client.chat.completions.create(
+                model=self.settings.model,
+                messages=[
+                    {"role": "system", "content": self.instruction()},
+                    {"role": "user", "content": input_text},
+                ],
+                temperature=self.settings.temperature,
+                max_tokens=self.settings.max_new_tokens,
+            )
+            raw = response.choices[0].message.content or ""
 
-        match = re.search(r"\b([1-4])\b", raw)
-        if not match:
-            raise ValueError(f"Could not parse judgment from model response: {raw}")
+            match = re.search(r"\b([1-4])\b", raw)
+            if match:
+                score = int(match.group())
+                return max(1, min(4, score))
+            else:
+                logging.warning(f"Could not parse judgment from model response: {raw}")
 
-        score = int(match.group())
-        return max(1, min(4, score))
+        raise ValueError(f"Could not parse judgment from model response after {retries} retries.")
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [
