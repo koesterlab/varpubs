@@ -45,7 +45,7 @@ def summarize_variants(
                     select(Summary).where(
                         Summary.pmid == pmid,
                         Summary.term == term,
-                        Summary.model == summarizer.settings.model
+                        Summary.model == summarizer.settings.model,
                     )
                 ).first()
 
