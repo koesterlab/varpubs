@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from sqlmodel import Session, select
 
-from varpubs.cache import Cache, Summary
+from varpubs.cache import Cache, Judge, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from varpubs.pubmed_db import PubmedArticle, PubmedDB, TermToPMID
 from varpubs.summarize import PubmedSummarizer
@@ -28,6 +28,7 @@ def summarize_variants(
     db = PubmedDB(path=db_path, vcf_paths=[], email="")
     engine = db.engine
     cache = summarizer.settings.cache
+    judgements: List[Judge] = []
 
     with Session(engine) as session:
         rows = []
@@ -47,7 +48,7 @@ def summarize_variants(
                     continue
 
                 summary_text = (
-                    cache.lookup(
+                    cache.lookup_summary(
                         term,
                         pmid,
                         summarizer.settings.model,
@@ -64,13 +65,36 @@ def summarize_variants(
                 if not judges:
                     judges = []
                 for judge in judges:
-                    scores[judge] = summarizer.judge(article, judge)
-                    summaries[pmid] = {
-                        "article": article,
-                        "summary": summary_text,
-                        "scores": scores,
-                        "term": term,
-                    }
+                    score = (
+                        cache.lookup_judge(
+                            term,
+                            pmid,
+                            summarizer.settings.model,
+                            judge,
+                            summarizer.judge_prompt_hash(),
+                        )
+                        if cache
+                        else None
+                    )
+                    if not score:
+                        score = summarizer.judge(article, judge)
+                        judgements.append(
+                            Judge(
+                                term=term,
+                                pmid=pmid,
+                                model=summarizer.settings.model,
+                                judge=judge,
+                                score=score,
+                                prompt_hash=summarizer.judge_prompt_hash(),
+                            )
+                        )
+                    scores[judge] = score
+                summaries[pmid] = {
+                    "article": article,
+                    "summary": summary_text,
+                    "scores": scores,
+                    "term": term,
+                }
             sorted_summaries = sorted(
                 summaries.items(),
                 key=lambda x: sum(x[1]["scores"].values()) if x[1]["scores"] else 0,

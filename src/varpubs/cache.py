@@ -75,7 +75,7 @@ class Cache:
                     session.add(judge)
             session.commit()
 
-    def lookup(
+    def lookup_summary(
         self, term: str, pmid: int, model: str, prompt_hash: str
     ) -> Optional[Summary]:
         """Look up a summary by term and PMID."""
@@ -90,6 +90,22 @@ class Cache:
         with Session(self.engine) as session:
             session.add_all(summaries)
             session.commit()
+
+    def lookup_judge(
+        self, term: str, pmid: int, model: str, judge: str, prompt_hash: str
+    ) -> Optional[int]:
+        """Look up a judge by term, PMID used model and prompt hash."""
+        with Session(self.engine) as session:
+            j = session.exec(
+                select(Judge).filter_by(
+                    term=term,
+                    pmid=pmid,
+                    model=model,
+                    judge=judge,
+                    prompt_hash=prompt_hash,
+                )
+            ).first()
+            return j.score if j else None
 
     def write_judges(self, judges: List[Judge]) -> None:
         with Session(self.engine) as session:
