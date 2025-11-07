@@ -1,10 +1,10 @@
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List
-import logging
+from typing import List, Optional
+
 import sqlalchemy
-from sqlmodel import Field, SQLModel, Session, Integer
-from sqlmodel import select
+from sqlmodel import Field, Integer, Session, SQLModel, select
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +86,14 @@ class Cache:
                 )
             ).first()
 
-    def write(self, summaries: List[Summary]) -> None:
+    def write_summaries(self, summaries: List[Summary]) -> None:
         with Session(self.engine) as session:
             session.add_all(summaries)
+            session.commit()
+
+    def write_judges(self, judges: List[Judge]) -> None:
+        with Session(self.engine) as session:
+            session.add_all(judges)
             session.commit()
 
     @property

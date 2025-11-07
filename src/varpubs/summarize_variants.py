@@ -1,11 +1,13 @@
-import logging
 import csv
+import logging
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
+
 from sqlmodel import Session, select
+
+from varpubs.cache import Cache, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from varpubs.pubmed_db import PubmedArticle, TermToPMID, PubmedDB
-from varpubs.cache import Summary, Cache
+from varpubs.pubmed_db import PubmedArticle, PubmedDB, TermToPMID
 from varpubs.summarize import PubmedSummarizer
 
 
@@ -100,7 +102,7 @@ def summarize_variants(
                     )
                     for pmid, data in summaries.items()
                 ]
-                ocache.write(s)
+                ocache.write_summaries(s)
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
