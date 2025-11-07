@@ -110,7 +110,7 @@ class PubmedSummarizer:
         template_text = self.judge_prompt_template().template
         return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
 
-    def judge(self, article: PubmedArticle, term: str, retries=3) -> int:
+    def judge(self, article: PubmedArticle, term: str, retries: int = 3) -> int:
         for _ in range(retries):
             template = self.judge_prompt_template()
             input_text = template.substitute(
