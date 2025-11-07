@@ -27,6 +27,7 @@ class Judge(SQLModel, table=True):
     model: str = Field(nullable=False)
     judge: str = Field(nullable=False)
     score: int = Field(nullable=False)
+    prompt_hash: str = Field(nullable=False)
 
 
 @dataclass
@@ -50,18 +51,39 @@ class Cache:
                     overwrite
                     or not session.exec(
                         select(Summary).filter_by(
-                            term=summary.term, pmid=summary.pmid, model=summary.model
+                            term=summary.term,
+                            pmid=summary.pmid,
+                            model=summary.model,
+                            prompt_hash=summary.prompt_hash,
                         )
                     ).first()
                 ):
                     session.add(summary)
+            for judge in other_session.exec(select(Judge)):
+                if (
+                    overwrite
+                    or not session.exec(
+                        select(Judge).filter_by(
+                            term=judge.term,
+                            pmid=judge.pmid,
+                            model=judge.model,
+                            judge=judge.judge,
+                            prompt_hash=judge.prompt_hash,
+                        )
+                    ).first()
+                ):
+                    session.add(judge)
             session.commit()
 
-    def lookup(self, term: str, pmid: int, model: str) -> Optional[Summary]:
+    def lookup(
+        self, term: str, pmid: int, model: str, prompt_hash: str
+    ) -> Optional[Summary]:
         """Look up a summary by term and PMID."""
         with Session(self.engine) as session:
             return session.exec(
-                select(Summary).filter_by(term=term, pmid=pmid, model=model)
+                select(Summary).filter_by(
+                    term=term, pmid=pmid, model=model, prompt_hash=prompt_hash
+                )
             ).first()
 
     def write(self, summaries: List[Summary]) -> None:

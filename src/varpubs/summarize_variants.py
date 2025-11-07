@@ -45,7 +45,12 @@ def summarize_variants(
                     continue
 
                 summary_text = (
-                    cache.lookup(term, pmid, summarizer.settings.model)
+                    cache.lookup(
+                        term,
+                        pmid,
+                        summarizer.settings.model,
+                        summarizer.summary_prompt_hash(),
+                    )
                     if cache
                     else None
                 )
