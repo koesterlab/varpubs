@@ -91,6 +91,7 @@ def summarize_variants(
                         pmid=pmid,
                         model=summarizer.settings.model,
                         summary=data["summary"],
+                        prompt_hash=summarizer.summary_prompt_hash(),
                     )
                     for pmid, data in summaries.items()
                 ]

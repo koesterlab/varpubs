@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional
 from openai import OpenAI
+from string import Template
 from varpubs.pubmed_db import PubmedArticle
 from varpubs.cache import Cache
 import re
 import logging
+import hashlib
 
 
 @dataclass
@@ -50,6 +52,19 @@ class PubmedSummarizer:
         )
         return str(response.choices[0].message.content)
 
+    def summary_prompt_template(self) -> Template:
+        """Return a template for generating a summary prompt."""
+        return Template(
+            "Concisely summarize the information in the following text regarding ${term} "
+            "in at most three sentences for your colleagues:\n\n"
+            "Title: ${title}\n\n${abstract}"
+        )
+
+    def summary_prompt_hash(self) -> str:
+        """Return a stable hash of the current summary prompt template."""
+        template_text = self.summary_prompt_template().template
+        return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
+
     def summarize_article(self, article: PubmedArticle, term: str) -> str:
         if not article.abstract or not article.abstract.strip():
             logging.warning(
@@ -57,10 +72,11 @@ class PubmedSummarizer:
             )
             return "No abstract available."
 
-        input_text = (
-            f"Concisely summarize the information in the following text regarding {term} "
-            f"in at most three sentences for your colleagues:\n\n"
-            f"Title: {article.title}\n\n{article.abstract}"
+        template = self.summary_prompt_template()
+        input_text = template.substitute(
+            term=term,
+            title=article.title,
+            abstract=article.abstract or "",
         )
 
         response = self.client.chat.completions.create(

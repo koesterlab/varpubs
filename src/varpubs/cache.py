@@ -16,6 +16,17 @@ class Summary(SQLModel, table=True):
     pmid: int = Field(Integer, nullable=False, primary_key=True)
     model: str = Field(nullable=False)
     summary: str = Field(nullable=False)
+    prompt_hash: str = Field(nullable=False)
+
+
+class Judge(SQLModel, table=True):
+    """LLM judge score of PubMed article stored locally."""
+
+    term: str = Field(nullable=False, primary_key=True)
+    pmid: int = Field(Integer, nullable=False, primary_key=True)
+    model: str = Field(nullable=False)
+    judge: str = Field(nullable=False)
+    score: int = Field(nullable=False)
 
 
 @dataclass
