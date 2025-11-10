@@ -38,6 +38,7 @@ class PubmedSummarizer:
         input_text = (
             f"Take the following summaries of PubMed articles related to {term}"
             "and summarize them in a single paragraph while ensuring that the summary is concise and informative."
+            "Only reply with the summary and no introduction sentence."
             "When using information from the summaries, cite the PMID of the article."
             f"{summaries}"
         )
