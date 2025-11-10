@@ -36,7 +36,7 @@ class SummarizeArgs:
 
     - db_path: Path to the existing DuckDB database file.
     - vcf_path: A single annotated VCF file with variant terms.
-    - cache: Path to the cache file for storing summary results.
+    - cache: Path to cache file to look up summary results instead of LLM usage
     - api_key: Hugging Face API token for model access.
     - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
     - llm_url: Base URL for LLM API (Must follow the openai API format)
