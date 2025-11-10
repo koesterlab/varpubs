@@ -39,9 +39,9 @@ class Cache:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         SQLModel.metadata.create_all(self.engine)
         if not self.path.exists():
-            logger.info("New cache created.")
+            logger.info("New cache created under {}.", self.path)
         else:
-            logger.info("Existing cache found. Tables checked or updated.")
+            logger.info("Using existing cache {}.", self.path)
 
     def merge(self, other: "Cache", overwrite: bool = False) -> None:
         """Merge another CacheDB into this one."""
