@@ -127,6 +127,7 @@ def summarize_variants(
                     for pmid, data in summaries.items()
                 ]
                 ocache.write_summaries(s)
+                ocache.write_judges(judgements)
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
