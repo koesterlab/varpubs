@@ -39,9 +39,9 @@ class Cache:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         SQLModel.metadata.create_all(self.engine)
         if not self.path.exists():
-            logger.info("New cache created under {}.", self.path)
+            logger.info(f"New cache created under {self.path}")
         else:
-            logger.info("Using existing cache {}.", self.path)
+            logger.info(f"Using existing cache {self.path}")
 
     def merge(self, other: "Cache", overwrite: bool = False) -> None:
         """Merge another CacheDB into this one."""
@@ -80,11 +80,16 @@ class Cache:
     ) -> Optional[Summary]:
         """Look up a summary by term and PMID."""
         with Session(self.engine) as session:
-            return session.exec(
+            entry = session.exec(
                 select(Summary).filter_by(
                     term=term, pmid=pmid, model=model, prompt_hash=prompt_hash
                 )
             ).first()
+            if entry:
+                logger.info(f"Found cache entry for {term} ({pmid})")
+                return entry
+            else:
+                return None
 
     def write_summaries(self, summaries: List[Summary]) -> None:
         with Session(self.engine) as session:
