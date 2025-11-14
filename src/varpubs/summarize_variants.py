@@ -47,7 +47,7 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = (
+                cached_summary = (
                     cache.lookup_summary(
                         term,
                         pmid,
@@ -58,8 +58,11 @@ def summarize_variants(
                     else None
                 )
 
-                if not summary_text:
-                    summary_text = summarizer.summarize_article(article, term)
+                summary_text = (
+                    cached_summary.summary
+                    if cached_summary
+                    else summarizer.summarize_article(article, term)
+                )
 
                 scores = {}
                 if not judges:
