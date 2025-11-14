@@ -86,7 +86,7 @@ class Cache:
                 )
             ).first()
             if entry:
-                logger.info(f"Found cache entry for {term} ({pmid})")
+                logger.info(f"Found summary cache entry for {term} (pmid: {pmid})")
                 return entry
             else:
                 return None
@@ -110,7 +110,13 @@ class Cache:
                     prompt_hash=prompt_hash,
                 )
             ).first()
-            return j.score if j else None
+            if j:
+                logger.info(
+                    f"Found judgement cache entry for {term} with judge term {judge}"
+                )
+                return j.score
+            else:
+                return None
 
     def write_judges(self, judges: List[Judge]) -> None:
         with Session(self.engine) as session:
