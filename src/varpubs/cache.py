@@ -58,7 +58,7 @@ class Cache:
                         )
                     ).first()
                 ):
-                    session.add(summary)
+                    session.add(Summary(**summary.model_dump()))
             for judge in other_session.exec(select(Judge)):
                 if (
                     overwrite
@@ -72,7 +72,7 @@ class Cache:
                         )
                     ).first()
                 ):
-                    session.add(judge)
+                    session.add(Judge(**judge.model_dump()))
             session.commit()
 
     def lookup_summary(
