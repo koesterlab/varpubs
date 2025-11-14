@@ -1,10 +1,13 @@
-import logging
 import csv
+import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
+
 from sqlmodel import Session, select
+
+from varpubs.cache import Cache, Judge, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from varpubs.pubmed_db import PubmedArticle, TermToPMID, PubmedDB
+from varpubs.pubmed_db import PubmedArticle, PubmedDB, TermToPMID
 from varpubs.summarize import PubmedSummarizer
 
 
@@ -14,6 +17,7 @@ def summarize_variants(
     summarizer: PubmedSummarizer,
     out_path: Optional[Path] = None,
     judges: Optional[list[str]] = None,
+    output_cache: Optional[Path] = None,
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
@@ -23,6 +27,8 @@ def summarize_variants(
     terms = extract_hgvsp_from_vcf(str(vcf_path))
     db = PubmedDB(path=db_path, vcf_paths=[], email="")
     engine = db.engine
+    cache = summarizer.settings.cache
+    judgements: List[Judge] = []
 
     with Session(engine) as session:
         rows = []
@@ -41,17 +47,57 @@ def summarize_variants(
                 if not article:
                     continue
 
-                summary_text = summarizer.summarize_article(article, term)
+                cached_summary = (
+                    cache.lookup_summary(
+                        term,
+                        pmid,
+                        summarizer.settings.model,
+                        summarizer.summary_prompt_hash(),
+                    )
+                    if cache
+                    else None
+                )
+
+                summary_text = (
+                    cached_summary.summary
+                    if cached_summary
+                    else summarizer.summarize_article(article, term)
+                )
+
                 scores = {}
                 if not judges:
                     judges = []
                 for judge in judges:
-                    scores[judge] = summarizer.judge(article, judge)
-                    summaries[pmid] = {
-                        "article": article,
-                        "summary": summary_text,
-                        "scores": scores,
-                    }
+                    score = (
+                        cache.lookup_judge(
+                            term,
+                            pmid,
+                            summarizer.settings.model,
+                            judge,
+                            summarizer.judge_prompt_hash(),
+                        )
+                        if cache
+                        else None
+                    )
+                    if not score:
+                        score = summarizer.judge(article, judge)
+                        judgements.append(
+                            Judge(
+                                term=term,
+                                pmid=pmid,
+                                model=summarizer.settings.model,
+                                judge=judge,
+                                score=score,
+                                prompt_hash=summarizer.judge_prompt_hash(),
+                            )
+                        )
+                    scores[judge] = score
+                summaries[pmid] = {
+                    "article": article,
+                    "summary": summary_text,
+                    "scores": scores,
+                    "term": term,
+                }
             sorted_summaries = sorted(
                 summaries.items(),
                 key=lambda x: sum(x[1]["scores"].values()) if x[1]["scores"] else 0,
@@ -69,6 +115,22 @@ def summarize_variants(
                         [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
                     )
                 )
+
+            if output_cache:
+                ocache = Cache(output_cache)
+                ocache.deploy()
+                s: List[Summary] = [
+                    Summary(
+                        term=data["term"],
+                        pmid=pmid,
+                        model=summarizer.settings.model,
+                        summary=data["summary"],
+                        prompt_hash=summarizer.summary_prompt_hash(),
+                    )
+                    for pmid, data in summaries.items()
+                ]
+                ocache.write_summaries(s)
+                ocache.write_judges(judgements)
 
         if out_path:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
