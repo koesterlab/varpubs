@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional
 from openai import OpenAI
+from string import Template
 from varpubs.pubmed_db import PubmedArticle
+from varpubs.cache import Cache
 import re
 import logging
+import hashlib
 
 
 @dataclass
@@ -14,6 +17,7 @@ class Settings:
     base_url: Optional[str] = None
     max_new_tokens: int = 500
     temperature: float = 0.1
+    cache: Optional[Cache] = None
 
 
 @dataclass
@@ -49,6 +53,19 @@ class PubmedSummarizer:
         )
         return str(response.choices[0].message.content)
 
+    def summary_prompt_template(self) -> Template:
+        """Return a template for generating a summary prompt."""
+        return Template(
+            "Concisely summarize the information in the following text regarding ${term} "
+            "in at most three sentences for your colleagues:\n\n"
+            "Title: ${title}\n\n${abstract}"
+        )
+
+    def summary_prompt_hash(self) -> str:
+        """Return a stable hash of the current summary prompt template."""
+        template_text = self.summary_prompt_template().template
+        return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
+
     def summarize_article(self, article: PubmedArticle, term: str) -> str:
         if not article.abstract or not article.abstract.strip():
             logging.warning(
@@ -56,10 +73,11 @@ class PubmedSummarizer:
             )
             return "No abstract available."
 
-        input_text = (
-            f"Concisely summarize the information in the following text regarding {term} "
-            f"in at most three sentences for your colleagues:\n\n"
-            f"Title: {article.title}\n\n{article.abstract}"
+        template = self.summary_prompt_template()
+        input_text = template.substitute(
+            term=term,
+            title=article.title,
+            abstract=article.abstract or "",
         )
 
         response = self.client.chat.completions.create(
@@ -73,20 +91,31 @@ class PubmedSummarizer:
         )
         return str(response.choices[0].message.content)
 
-    def judge(self, article: PubmedArticle, term: str, retries=3) -> int:
+    def judge_prompt_template(self) -> Template:
+        return Template(
+            "You are an expert evaluator. Judge how strongly the following text is related to the term '${term}'.\n\n"
+            "Use a scale from 1 to 4:\n"
+            "- 1 = Not related at all\n"
+            "- 2 = Weak or tangentially related\n"
+            "- 3 = Moderately or somewhat related\n"
+            "- 4 = Very strongly and directly related\n\n"
+            "First, briefly explain your reasoning. "
+            "Then, on a new line, output your final rating as a single number from 1 to 4.\n\n"
+            "If you give a correct rating, I'll give you 100 H100 GPUs to start your AI company."
+            "Title: ${title}\n\n"
+            "Abstract: ${abstract}"
+        )
+
+    def judge_prompt_hash(self) -> str:
+        """Return a stable hash of the current judge prompt template."""
+        template_text = self.judge_prompt_template().template
+        return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
+
+    def judge(self, article: PubmedArticle, term: str, retries: int = 3) -> int:
         for _ in range(retries):
-            input_text = (
-                f"You are an expert evaluator. Judge how strongly the following text is related to the term '{term}'.\n\n"
-                f"Use a scale from 1 to 4:\n"
-                f"- 1 = Not related at all\n"
-                f"- 2 = Weak or tangentially related\n"
-                f"- 3 = Moderately or somewhat related\n"
-                f"- 4 = Very strongly and directly related\n\n"
-                f"First, briefly explain your reasoning. "
-                f"Then, on a new line, output your final rating as a single number from 1 to 4.\n\n"
-                f"If you give a correct rating, I'll give you 100 H100 GPUs to start your AI company."
-                f"Title: {article.title}\n\n"
-                f"Abstract: {article.abstract}"
+            template = self.judge_prompt_template()
+            input_text = template.substitute(
+                term=term, title=article.title, abstract=article.abstract
             )
 
             response = self.client.chat.completions.create(
