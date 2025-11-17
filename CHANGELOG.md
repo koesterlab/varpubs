@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/koesterlab/varpubs/compare/v0.3.1...v0.4.0) (2025-11-17)
+
+
+### Features
+
+* Cache LLM summaries in database ([#24](https://github.com/koesterlab/varpubs/issues/24)) ([5e78cd9](https://github.com/koesterlab/varpubs/commit/5e78cd9c729659532878ae2d15385498faba7578))
+
+
+### Bug Fixes
+
+* Add logging and retries to judge method for robustness ([64c637d](https://github.com/koesterlab/varpubs/commit/64c637db166b235edf9988647ebe9e6f00263cb5))
+* Clarify prompt to exclude introduction sentence in summary ([#23](https://github.com/koesterlab/varpubs/issues/23)) ([d072464](https://github.com/koesterlab/varpubs/commit/d072464e70e912e7ba47e704dc551cf1dc8553fd))
+* Keep full PubmedArticle for top summaries and fix typing issue ([bedef38](https://github.com/koesterlab/varpubs/commit/bedef3838c45aef385a9255b2fbda98bffc90f92))
+* Use a 1-4 scale for relevance judgments and add brief explanation ([79ea122](https://github.com/koesterlab/varpubs/commit/79ea122240d1a6bb527a2277e4342359b1a2b38f))
+
 ## [0.3.1](https://github.com/koesterlab/varpubs/compare/v0.3.0...v0.3.1) (2025-10-01)
 
 
