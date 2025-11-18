@@ -37,10 +37,17 @@ class PubmedSummarizer:
         )
         input_text = (
             f"Take the following summaries of PubMed articles related to {term}"
-            "and summarize them in a single paragraph while ensuring that the summary is concise and informative."
-            "Only reply with the summary and no introduction sentence."
-            "When using information from the summaries, cite the PMID of the article."
-            f"{summaries}"
+            "Write only ONE single coherent paragraph.\n"
+            "Requirements:\n"
+            "- REMOVE all irrelevant information.\n"
+            "- DO NOT add introductory phrases (e.g., 'the provided text discusses', 'here is a summary').\n"
+            "- DO NOT list results. NO bullet points. NO multiple paragraphs.\n"
+            "- Synthesise the information: merge overlapping findings, highlight agreements or contradictions.\n"
+            "- Be concise but informative. Focus on biologically and clinically meaningful insights only.\n"
+            "- When referring to information from an article, cite the PMID in parentheses (PMID:XXXXX).\n"
+            "- Only output the paragraph. No meta-commentary.\n\n"
+            f"Article summaries:\n{summaries}\n\n"
+            "Now write the summary paragraph:"
         )
         response = self.client.chat.completions.create(
             model=self.settings.model,
@@ -48,7 +55,7 @@ class PubmedSummarizer:
                 {"role": "system", "content": self.instruction()},
                 {"role": "user", "content": input_text},
             ],
-            max_tokens=self.settings.max_new_tokens,
+            max_tokens=self.settings.max_new_tokens + 250,
             temperature=self.settings.temperature,
         )
         return str(response.choices[0].message.content)
