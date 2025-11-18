@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/koesterlab/varpubs/compare/v0.4.0...v0.4.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* Ignore XML parse errors in Entrez.read for now ([690a1c7](https://github.com/koesterlab/varpubs/commit/690a1c72395021e3f508f633a0b6c52b4c7ba258))
+* Improve PubMed summarizer prompt and token limit ([831703f](https://github.com/koesterlab/varpubs/commit/831703f60e96ab0285fb178df7f27474397dcdbe))
+
 ## [0.4.0](https://github.com/koesterlab/varpubs/compare/v0.3.1...v0.4.0) (2025-11-17)
 
 
