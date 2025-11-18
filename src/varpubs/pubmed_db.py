@@ -222,7 +222,7 @@ class PubmedDB:
                     rettype="medline",
                     retmode="xml",
                 )
-                data = cast(dict, Entrez.read(fetch))
+                data = cast(dict, Entrez.read(fetch, ignore_errors=True))
                 for item in data.get("PubmedArticle", []):
                     medline = cast(dict, item.get("MedlineCitation", {}))
                     article = cast(dict, medline.get("Article", {}))
