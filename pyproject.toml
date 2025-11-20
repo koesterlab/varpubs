@@ -16,6 +16,7 @@ dependencies = [
     "simple-parsing",
     "biopython>=1.85,<2",
     "openai>=1.97.0,<2",
+    "regex >=v2025.11",
 ]
 
 [project.scripts]

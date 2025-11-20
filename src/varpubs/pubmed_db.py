@@ -1,16 +1,18 @@
+import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast, Optional, Iterable
-import logging
+from typing import Iterable, Optional, cast
+
+import regex
 import sqlalchemy
-from sqlmodel import Field, SQLModel, Session, Integer
-from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from Bio import Entrez
-import re
-from sqlmodel import select
-from varpubs.hgvs_extractor import AA3_TO_1
+from sqlmodel import Field, Integer, Session, SQLModel, select
+
+from varpubs.hgvs_extractor import AA3_TO_1, extract_hgvsp_from_vcf
 
 logger = logging.getLogger(__name__)
+normalize_pattern = regex.compile(r"[a-z0-9]+")
 
 
 def _variant_synonyms(term: str):
@@ -41,7 +43,7 @@ def _variant_synonyms(term: str):
 
 def _normalize_tokens(text: str):
     """Lowercase and split text into alphanumeric tokens (punctuation-insensitive)."""
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
+    return normalize_pattern.findall(text.lower())
 
 
 def matches_variant_loose(term: str, text: str, token_window: int = 40) -> bool:
