@@ -58,5 +58,6 @@ varpubs update-cache \
 ## Authors
 - Felix Wiegand
 - Felix Mölder
+- Hendrik Damm
 - İlmay Taş
 - Johannes Köster
