@@ -1,8 +1,8 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/koesterlab/varpubs/main.yml?branch=main&label=tests)](https://github.com/koesterlab/varpubs/actions)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/version.svg)](https://anaconda.org/bioconda/varpubs)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/latest_release_date.svg)](https://anaconda.org/bioconda/varpubs)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/license.svg)](https://anaconda.org/bioconda/varpubs)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/downloads.svg)](https://anaconda.org/bioconda/varpubs)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/version.svg?style=flat)](https://anaconda.org/bioconda/varpubs)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/latest_release_date.svg?style=flat)](https://anaconda.org/bioconda/varpubs)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/license.svg?style=flat)](https://anaconda.org/bioconda/varpubs)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/varpubs/badges/downloads.svg?style=flat)](https://anaconda.org/bioconda/varpubs)
 
 # varpubs
 
