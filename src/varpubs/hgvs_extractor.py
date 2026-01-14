@@ -69,6 +69,10 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
                         )
                         continue
 
+                    # skip synonymous variants
+                    if "%3D" in hgvsp:
+                        continue
+
                     for long, short in AA3_TO_1.items():
                         hgvsp = hgvsp.replace(long, short)
 

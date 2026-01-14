@@ -43,7 +43,7 @@ class PubmedDB:
         logger.info(f"Deploying database at: {self.path}")
         logger.info(f"Input VCF paths: {[str(p) for p in self.vcf_paths]}")
 
-        pg = PubGator()
+        pg = PubGator(max_requests_per_second=1)
         self.create_tables()
 
         relations = dict()
@@ -54,7 +54,15 @@ class PubmedDB:
 
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret
-            publications = pg.search(bioconcept, max_ret=25)
+            retries = 5
+            for i in range(1,retries+1):
+                try:
+                    publications = pg.search(bioconcept, max_ret=25)
+                    break
+                except:
+                    logger.warn(f"Failed search for: {bioconcept}. Try {i} of {retries}")
+                    if i == retries:
+                        raise ValueError("Max retries reached.")
             pmids = [publication.pmid for publication in publications]
             relations[bioconcept] = pmids
 
@@ -113,7 +121,7 @@ class PubmedDB:
                 authors = passage.infons.get("authors")
                 meta = passage.infons.get("journal")
                 if meta:
-                    journal, rest = meta.split(";", 1)
+                    journal, _, rest = meta.partition(";")
                     doi = rest.split("doi:", 1)[1] if rest and "doi:" in rest else ""
             if passage.infons.get("type") == "abstract":
                 abstract = passage.text
