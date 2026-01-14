@@ -1,4 +1,3 @@
-import re
 import logging
 from cyvcf2 import VCF
 
@@ -70,28 +69,10 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
                         )
                         continue
 
-                    # Match full HGVS.p format: e.g., p.Gly12Cys
-                    match = re.match(
-                        r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2}|\*)?", hgvsp
-                    )
-                    if not match:
-                        logger.warning(
-                            f"HGVSp entry does not seem to be valid: {hgvsp}"
-                        )
-                        continue
-
-                    ref_aa_3 = match.group(1)
-                    alt_aa_3 = match.group(3)
-
-                    # Skip synonymous mutations (e.g., p.Tyr516Tyr)
-                    if alt_aa_3 and ref_aa_3 == alt_aa_3:
-                        continue
-
-                    one_letter_hgvs = (
-                        f"p.{AA3_TO_1[ref_aa_3]}{match.group(2)}{AA3_TO_1[alt_aa_3]}"
-                    )
+                    for long, short in AA3_TO_1.items():
+                        hgvsp = hgvsp.replace(long, short)
 
                     # Create bioconcept for querying pubtator
-                    term_set.add(f"@VARIANT_{one_letter_hgvs}_{gene}_{species}")
+                    term_set.add(f"@VARIANT_{hgvsp}_{gene}_{species}")
 
     return term_set
