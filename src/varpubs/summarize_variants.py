@@ -9,6 +9,7 @@ from varpubs.cache import Cache, Judge, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from varpubs.pubmed_db import PubmedArticle, PubmedDB, BioconceptToPMID
 from varpubs.summarize import PubmedSummarizer
+from varpubs.hgvs_extractor import to_3_letter, bioconcept_to_hgvsp_gene
 
 
 def summarize_variants(
@@ -60,11 +61,11 @@ def summarize_variants(
                     if cache
                     else None
                 )
-
+                hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
                 summary_text = (
                     cached_summary.summary
                     if cached_summary
-                    else summarizer.summarize_article(article, bioconcept)
+                    else summarizer.summarize_article(article, f"{gene} {hgvsp}")
                 )
 
                 scores = {}
@@ -111,11 +112,16 @@ def summarize_variants(
             ]
 
             if top_summaries:
-                gene, symbol = bioconcept.split("_")[1:3]
-                summary = summarizer.summarize(top_summaries, f"{gene} {symbol}")
+                hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
+                summary = summarizer.summarize(top_summaries, f"{gene} {hgvs}")
                 rows.append(
                     tuple(
-                        [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
+                        [
+                            gene,
+                            to_3_letter(hgvs),
+                            summary,
+                            ",".join(f"{pmid}" for pmid in pmids),
+                        ]
                     )
                 )
 

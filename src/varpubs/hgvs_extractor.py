@@ -1,5 +1,6 @@
 import logging
 from cyvcf2 import VCF
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
@@ -28,6 +29,34 @@ AA3_TO_1 = {
     "*": "*",
     "del": "del",
 }
+
+AA1_TO_3 = {
+    "A": "Ala",
+    "R": "Arg",
+    "N": "Asn",
+    "D": "Asp",
+    "C": "Cys",
+    "E": "Glu",
+    "Q": "Gln",
+    "G": "Gly",
+    "H": "His",
+    "I": "Ile",
+    "L": "Leu",
+    "K": "Lys",
+    "M": "Met",
+    "F": "Phe",
+    "P": "Pro",
+    "S": "Ser",
+    "T": "Thr",
+    "W": "Trp",
+    "Y": "Tyr",
+    "V": "Val",
+    "*": "Ter",
+}
+
+
+def to_3_letter(term: str) -> str:
+    return "".join(AA1_TO_3.get(aa, aa) for aa in term)
 
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
@@ -77,6 +106,15 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
                         hgvsp = hgvsp.replace(long, short)
 
                     # Create bioconcept for querying pubtator
-                    term_set.add(f"@VARIANT_{hgvsp}_{gene}_{species}")
+                    term_set.add(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
 
     return term_set
+
+
+def hgvsp_gene_to_bioconcept(hgvsp: str, gene: str, species: str) -> str:
+    return f"@VARIANT_{hgvsp}_{gene}_{species}"
+
+
+def bioconcept_to_hgvsp_gene(bioconcept: str) -> Tuple[str, str]:
+    hgvsp, gene = bioconcept.split("_")[1:3]
+    return hgvsp, gene
