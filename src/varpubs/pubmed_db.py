@@ -55,12 +55,15 @@ class PubmedDB:
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret
             retries = 5
-            for i in range(1,retries+1):
+            publications = list()
+            for i in range(1, retries + 1):
                 try:
                     publications = pg.search(bioconcept, max_ret=25)
                     break
-                except:
-                    logger.warn(f"Failed search for: {bioconcept}. Try {i} of {retries}")
+                except ValueError:
+                    logger.warn(
+                        f"Failed search for: {bioconcept}. Try {i} of {retries}"
+                    )
                     if i == retries:
                         raise ValueError("Max retries reached.")
             pmids = [publication.pmid for publication in publications]
@@ -118,7 +121,7 @@ class PubmedDB:
         for passage in article.passages:
             if passage.infons.get("type") == "title":
                 title = passage.text
-                authors = passage.infons.get("authors")
+                authors = passage.infons.get("authors", "")
                 meta = passage.infons.get("journal")
                 if meta:
                     journal, _, rest = meta.partition(";")
