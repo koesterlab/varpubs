@@ -54,18 +54,8 @@ class PubmedDB:
 
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret
-            retries = 5
             publications = list()
-            for i in range(1, retries + 1):
-                try:
-                    publications = pg.search(bioconcept, max_ret=25)
-                    break
-                except ValueError:
-                    logger.warn(
-                        f"Failed search for: {bioconcept}. Try {i} of {retries}"
-                    )
-                    if i == retries:
-                        raise ValueError("Max retries reached.")
+            publications = pg.search(bioconcept, max_ret=25, retries=5)
             pmids = [publication.pmid for publication in publications]
             relations[bioconcept] = pmids
 
