@@ -1,6 +1,6 @@
-import re
 import logging
 from cyvcf2 import VCF
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
@@ -26,7 +26,37 @@ AA3_TO_1 = {
     "Tyr": "Y",
     "Val": "V",
     "Ter": "*",
+    "*": "*",
+    "del": "del",
 }
+
+AA1_TO_3 = {
+    "A": "Ala",
+    "R": "Arg",
+    "N": "Asn",
+    "D": "Asp",
+    "C": "Cys",
+    "E": "Glu",
+    "Q": "Gln",
+    "G": "Gly",
+    "H": "His",
+    "I": "Ile",
+    "L": "Leu",
+    "K": "Lys",
+    "M": "Met",
+    "F": "Phe",
+    "P": "Pro",
+    "S": "Ser",
+    "T": "Thr",
+    "W": "Trp",
+    "Y": "Tyr",
+    "V": "Val",
+    "*": "Ter",
+}
+
+
+def to_3_letter(term: str) -> str:
+    return "".join(AA1_TO_3.get(aa, aa) for aa in term)
 
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
@@ -44,17 +74,18 @@ def get_annotation_field_index(vcf: VCF, field: str) -> int:
     raise RuntimeError("ANN field not found in VCF header")
 
 
-def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
+def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
     vcf = VCF(vcf_path)
     hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
     gene_index = get_annotation_field_index(vcf, "SYMBOL")
-    term_set = set()
+    term_set: set[str] = set()
 
     for record in vcf:
         ann = record.INFO.get("ANN")
         if ann:
             for ann_entry in ann.split(","):
                 fields = ann_entry.split("|")
+                # TODO: Consider filtering only canonical transcripts
                 if len(fields) > max(hgvsp_index, gene_index):
                     if not fields[hgvsp_index]:
                         logger.warning(f"HGVSp entry is empty: {ann_entry}")
@@ -67,22 +98,23 @@ def extract_hgvsp_from_vcf(vcf_path: str) -> list[str]:
                         )
                         continue
 
-                    # Match full HGVS.p format: e.g., p.Gly12Cys
-                    match = re.match(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})?", hgvsp)
-                    if not match:
-                        logger.warning(
-                            f"HGVSp entry does not seem to be valid: {hgvsp}"
-                        )
+                    # skip synonymous variants
+                    if "%3D" in hgvsp:
                         continue
 
-                    ref_aa_3 = match.group(1)
-                    alt_aa_3 = match.group(3)
+                    for long, short in AA3_TO_1.items():
+                        hgvsp = hgvsp.replace(long, short)
 
-                    # Skip synonymous mutations (e.g., p.Tyr516Tyr)
-                    if alt_aa_3 and ref_aa_3 == alt_aa_3:
-                        continue
+                    # Create bioconcept for querying pubtator
+                    term_set.add(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
 
-                    # Only add the full HGVS.p form variant e.g., 'KRAS p.Gly12Cys'
-                    term_set.add(f"{gene} {hgvsp}")
+    return term_set
 
-    return sorted(term_set)
+
+def hgvsp_gene_to_bioconcept(hgvsp: str, gene: str, species: str) -> str:
+    return f"@VARIANT_{hgvsp}_{gene}_{species}"
+
+
+def bioconcept_to_hgvsp_gene(bioconcept: str) -> Tuple[str, str]:
+    hgvsp, gene = bioconcept.split("_")[1:3]
+    return hgvsp, gene

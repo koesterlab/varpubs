@@ -15,7 +15,6 @@ ARTICLE = article = PubmedArticle(
     Conclusions: The presence of a KRASG12 mutation had no detrimental effect on OS among patients treated in SUNLIGHT. The benefit of FTD/TPI plus bevacizumab over FTD/TPI alone was confirmed independently of KRASG12 status.""",
     authors="J Tabernero et al.",
     journal="Genetics Today",
-    pub_date="2023-09-15",
     doi="10.1016/j.esmoop.2024.102945",
 )
 
@@ -28,7 +27,6 @@ THERAPY_UNRELATED_ARTICLE = PubmedArticle(
     ),
     authors="A. Nemo et al.",
     journal="Aquatic Genetics",
-    pub_date="2023-09-15",
     doi="10.1016/j.esmoop.2024.102945",
 )
 

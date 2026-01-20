@@ -31,7 +31,6 @@ conda install -c bioconda varpubs
 varpubs deploy-db \
   --db-path pubmed.duckdb \
   --vcf-paths variants.vcf.gz other.vcf.gz \
-  --email your_email@example.com
 ```
 
 ### 2. Summarize variant-associated articles

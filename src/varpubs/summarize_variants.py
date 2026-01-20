@@ -7,14 +7,16 @@ from sqlmodel import Session, select
 
 from varpubs.cache import Cache, Judge, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from varpubs.pubmed_db import PubmedArticle, PubmedDB, TermToPMID
+from varpubs.pubmed_db import PubmedArticle, PubmedDB, BioconceptToPMID
 from varpubs.summarize import PubmedSummarizer
+from varpubs.hgvs_extractor import to_3_letter, bioconcept_to_hgvsp_gene
 
 
 def summarize_variants(
     db_path: Path,
     vcf_path: Path,
     summarizer: PubmedSummarizer,
+    species: str,
     out_path: Optional[Path] = None,
     judges: Optional[list[str]] = None,
     output_cache: Optional[Path] = None,
@@ -24,8 +26,8 @@ def summarize_variants(
     summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
 
-    terms = extract_hgvsp_from_vcf(str(vcf_path))
-    db = PubmedDB(path=db_path, vcf_paths=[], email="")
+    bioconcepts = extract_hgvsp_from_vcf(str(vcf_path), species)
+    db = PubmedDB(path=db_path, vcf_paths=[], species=species)
     engine = db.engine
     cache = summarizer.settings.cache
     judgements: List[Judge] = []
@@ -33,10 +35,12 @@ def summarize_variants(
     with Session(engine) as session:
         rows = []
 
-        for term in terms:
-            logging.info(f"Summarizing abstracts for variant term: {term}")
+        for bioconcept in bioconcepts:
+            logging.info(f"Summarizing abstracts for: {bioconcept}")
             mappings = session.exec(
-                select(TermToPMID).where(TermToPMID.term == term)
+                select(BioconceptToPMID).where(
+                    BioconceptToPMID.bioconcept == bioconcept
+                )
             ).all()
             pmids = set(m.pmid for m in mappings)
             summaries = {}
@@ -49,7 +53,7 @@ def summarize_variants(
 
                 cached_summary = (
                     cache.lookup_summary(
-                        term,
+                        bioconcept,
                         pmid,
                         summarizer.settings.model,
                         summarizer.summary_prompt_hash(),
@@ -57,11 +61,11 @@ def summarize_variants(
                     if cache
                     else None
                 )
-
+                hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
                 summary_text = (
                     cached_summary.summary
                     if cached_summary
-                    else summarizer.summarize_article(article, term)
+                    else summarizer.summarize_article(article, f"{gene} {hgvsp}")
                 )
 
                 scores = {}
@@ -70,7 +74,7 @@ def summarize_variants(
                 for judge in judges:
                     score = (
                         cache.lookup_judge(
-                            term,
+                            bioconcept,
                             pmid,
                             summarizer.settings.model,
                             judge,
@@ -83,7 +87,7 @@ def summarize_variants(
                         score = summarizer.judge(article, judge)
                         judgements.append(
                             Judge(
-                                term=term,
+                                term=bioconcept,
                                 pmid=pmid,
                                 model=summarizer.settings.model,
                                 judge=judge,
@@ -96,7 +100,7 @@ def summarize_variants(
                     "article": article,
                     "summary": summary_text,
                     "scores": scores,
-                    "term": term,
+                    "term": bioconcept,
                 }
             sorted_summaries = sorted(
                 summaries.items(),
@@ -108,11 +112,16 @@ def summarize_variants(
             ]
 
             if top_summaries:
-                summary = summarizer.summarize(top_summaries, term)
-                gene, symbol = term.split(" ")
+                hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
+                summary = summarizer.summarize(top_summaries, f"{gene} {hgvs}")
                 rows.append(
                     tuple(
-                        [gene, symbol, summary, ",".join(f"{pmid}" for pmid in pmids)]
+                        [
+                            gene,
+                            to_3_letter(hgvs),
+                            summary,
+                            ",".join(f"{pmid}" for pmid in pmids),
+                        ]
                     )
                 )
 

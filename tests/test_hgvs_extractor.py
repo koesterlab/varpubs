@@ -13,5 +13,5 @@ def test_get_annotation_field_index():
 
 def test_extract_hgvsp_from_vcf():
     vcf_path = Path("tests/resources/annotated.vcf")
-    terms = extract_hgvsp_from_vcf(str(vcf_path))
-    assert "MFSD2A p.Ser183Leu" in terms
+    terms = extract_hgvsp_from_vcf(str(vcf_path), "human")
+    assert "@VARIANT_p.S183L_MFSD2A_human" in terms

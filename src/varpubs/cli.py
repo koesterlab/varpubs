@@ -19,14 +19,12 @@ class DeployDBArgs:
 
     - db_path: Path to the DuckDB database file to be created or updated.
     - vcf_paths: List of VCF files containing variant information.
-    - email: Email address used for Entrez API access.
-    - batch_size: Number of terms to query at a time (default: 5).
+    - species: Species for variant annotation (default: human).
     """
 
     db_path: Path
     vcf_paths: List[Path]
-    email: str
-    batch_size: int = 5
+    species: str = "human"
 
 
 @dataclass
@@ -40,6 +38,7 @@ class SummarizeArgs:
     - api_key: Hugging Face API token for model access.
     - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
     - llm_url: Base URL for LLM API (Must follow the openai API format)
+    - species: Species for variant annotation (default: human).
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
     - output: Optional path to save the final variant summary file (CSV).
@@ -50,6 +49,7 @@ class SummarizeArgs:
     vcf_path: Path
     cache: Optional[Path]
     llm_url: str
+    species: str = "human"
     model: str = "medgemma-27b-it"
     role: str = "physician"
     judges: Optional[list[str]] = None
@@ -119,8 +119,7 @@ def main():
         db = PubmedDB(
             path=args.args.db_path,
             vcf_paths=args.args.vcf_paths,
-            email=args.args.email,
-            batch_size=args.args.batch_size,
+            species=args.args.species,
         )
         db.deploy()
 
@@ -144,6 +143,7 @@ def main():
             vcf_path=args.args.vcf_path,
             summarizer=summarizer,
             judges=args.args.judges,
+            species=args.args.species,
             out_path=args.args.output,
             output_cache=args.args.output_cache,
         )
