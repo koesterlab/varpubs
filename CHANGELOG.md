@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/koesterlab/varpubs/compare/v0.4.1...v0.5.0) (2026-01-20)
+
+
+### Features
+
+* Switch from PubMed to PubGator and use bioconcepts ([#27](https://github.com/koesterlab/varpubs/issues/27)) ([abe4671](https://github.com/koesterlab/varpubs/commit/abe4671dad5a0a1f2502b64070a4637c16fc9347))
+
+
+### Documentation
+
+* Add Hendrik Damm to the authors list ([245aa33](https://github.com/koesterlab/varpubs/commit/245aa3397f01b1c920d236661f6bfef56e74b98f))
+* Add README with docs and usage examples ([82a08d4](https://github.com/koesterlab/varpubs/commit/82a08d4586aaba7b352ef898142312e7c91b8acb))
+* Use flat style for Anaconda badges in README.md ([c8d1ee5](https://github.com/koesterlab/varpubs/commit/c8d1ee5ee1d187295b4f27bd2d18f724b5fc8ce8))
+* Use shields.io Conda badges in README ([642e12d](https://github.com/koesterlab/varpubs/commit/642e12d9e10172976b38ab1b872a69c2620b195f))
+
 ## [0.4.1](https://github.com/koesterlab/varpubs/compare/v0.4.0...v0.4.1) (2025-11-18)
 
 
