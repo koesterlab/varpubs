@@ -1,6 +1,6 @@
 import logging
 from cyvcf2 import VCF
-from typing import Tuple
+from typing import Tuple, List, Any
 
 logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
@@ -81,34 +81,38 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
     term_set: set[str] = set()
 
     for record in vcf:
-        ann = record.INFO.get("ANN")
-        if ann:
-            for ann_entry in ann.split(","):
-                fields = ann_entry.split("|")
-                # TODO: Consider filtering only canonical transcripts
-                if len(fields) > max(hgvsp_index, gene_index):
-                    if not fields[hgvsp_index]:
-                        logger.warning(f"HGVSp entry is empty: {ann_entry}")
-                        continue
-                    hgvsp = fields[hgvsp_index].split(":")[1]
-                    gene = fields[gene_index]
-                    if not hgvsp.startswith("p."):
-                        logger.warning(
-                            f"HGVSp entry does not seem to be valid: {hgvsp}"
-                        )
-                        continue
-
-                    # skip synonymous variants
-                    if "%3D" in hgvsp:
-                        continue
-
-                    for long, short in AA3_TO_1.items():
-                        hgvsp = hgvsp.replace(long, short)
-
-                    # Create bioconcept for querying pubtator
-                    term_set.add(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
-
+        term_set.union(set(extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)))
     return term_set
+
+def extract_bioconcept_from_record(record: Any, hgvsp_index: int, gene_index: int, species: str) -> List[str]:
+    ann = record.INFO.get("ANN")
+    bioconcepts = []
+    if ann:
+        for ann_entry in ann.split(","):
+            fields = ann_entry.split("|")
+            # TODO: Consider filtering only canonical transcripts
+            if len(fields) > max(hgvsp_index, gene_index):
+                if not fields[hgvsp_index]:
+                    logger.warning(f"HGVSp entry is empty: {ann_entry}")
+                    continue
+                hgvsp = fields[hgvsp_index].split(":")[1]
+                gene = fields[gene_index]
+                if not hgvsp.startswith("p."):
+                    logger.warning(
+                        f"HGVSp entry does not seem to be valid: {hgvsp}"
+                    )
+                    continue
+
+                # skip synonymous variants
+                if "%3D" in hgvsp:
+                    continue
+
+                for long, short in AA3_TO_1.items():
+                    hgvsp = hgvsp.replace(long, short)
+
+                # Create bioconcept for querying pubtator
+                bioconcepts.append(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
+    return bioconcepts
 
 
 def hgvsp_gene_to_bioconcept(hgvsp: str, gene: str, species: str) -> str:

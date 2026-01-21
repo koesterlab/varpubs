@@ -36,6 +36,7 @@ class SummarizeArgs:
 
     - db_path: Path to the existing DuckDB database file.
     - vcf_path: A single annotated VCF file with variant terms.
+    - output: Path to save the final variant summary file (bcf).
     - cache: Path to cache file to look up summary results instead of LLM usage
     - api_key: Hugging Face API token for model access.
     - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
@@ -43,12 +44,12 @@ class SummarizeArgs:
     - species: Species for variant annotation (default: human).
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
-    - output: Optional path to save the final variant summary file (CSV).
     - output_cache: Optional path to save the cache file for storing new summary results.
     """
 
     db_path: Path
     vcf_path: Path
+    output: Path
     cache: Optional[Path]
     llm_url: str
     species: str = "human"
@@ -56,7 +57,6 @@ class SummarizeArgs:
     role: str = "physician"
     judges: Optional[list[str]] = None
     api_key: Optional[str] = ""
-    output: Optional[Path] = None
     output_cache: Optional[Path] = None
 
 
