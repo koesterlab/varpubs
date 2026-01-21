@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/koesterlab/varpubs/compare/v0.5.0...v0.6.0) (2026-01-21)
+
+
+### Features
+
+* Add section based publication retrieval and expose ([#28](https://github.com/koesterlab/varpubs/issues/28)) ([349c69a](https://github.com/koesterlab/varpubs/commit/349c69a9f741c2599ece1b358e9f8283bd751a38))
+
 ## [0.5.0](https://github.com/koesterlab/varpubs/compare/v0.4.1...v0.5.0) (2026-01-20)
 
 
