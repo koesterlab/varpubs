@@ -27,7 +27,7 @@ def summarize_variants(
     """
 
     bioconcepts = extract_hgvsp_from_vcf(str(vcf_path), species)
-    db = PubmedDB(path=db_path, vcf_paths=[], species=species)
+    db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
     judgements: List[Judge] = []

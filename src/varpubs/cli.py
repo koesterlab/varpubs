@@ -20,11 +20,13 @@ class DeployDBArgs:
     - db_path: Path to the DuckDB database file to be created or updated.
     - vcf_paths: List of VCF files containing variant information.
     - species: Species for variant annotation (default: human).
+    - max_publications: Maximum number of publications to retrieve per variant (default: 50).
     """
 
     db_path: Path
     vcf_paths: List[Path]
     species: str = "human"
+    max_publications: int = 50
 
 
 @dataclass
@@ -120,6 +122,7 @@ def main():
             path=args.args.db_path,
             vcf_paths=args.args.vcf_paths,
             species=args.args.species,
+            max_publications=args.args.max_publications,
         )
         db.deploy()
 
