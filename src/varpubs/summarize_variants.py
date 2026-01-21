@@ -54,6 +54,16 @@ def summarize_variants(
                 "Number": ".",
             }
         )
+        if judges:
+            for judge in judges:
+                vcf.add_info_to_header(
+                    {
+                        "ID": f"{judge}_score",
+                        "Description": f"Varpubs judgement score for {judge}.",
+                        "Type": "Number",
+                        "Number": ".",
+                    }
+                )
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
@@ -63,6 +73,7 @@ def summarize_variants(
             )
             rec_summaries = []
             rec_pmids = []
+            rec_judgements = []
             for bioconcept in bioconcepts:
                 logging.info(f"Summarizing abstracts for: {bioconcept}")
                 mappings = session.exec(
@@ -96,7 +107,7 @@ def summarize_variants(
                         else summarizer.summarize_article(article, f"{gene} {hgvsp}")
                     )
 
-                    scores = {}
+                    scores: dict[str, int] = {}
                     if not judges:
                         judges = []
                     for judge in judges:
@@ -133,11 +144,13 @@ def summarize_variants(
                 final_summaries: list[tuple[PubmedArticle, str]] = [
                     (data["article"], data["summary"]) for data in summaries.values()
                 ]
+                judge_scores: List[dict[str, int]] = [data["scores"] for data in summaries.values()]
 
                 hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
                 summary = summarizer.summarize(final_summaries, f"{gene} {hgvs}")
                 rec_summaries.append(summary.replace(",", "%2C"))
                 rec_pmids.append("|".join(f"{pmid}" for pmid in pmids))
+                rec_judgements.append(judge_scores)
 
                 if output_cache:
                     ocache = Cache(output_cache)
@@ -157,6 +170,9 @@ def summarize_variants(
 
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
+            if judges:
+                for judge in judges:
+                    record.INFO[f"{judge}_score"] = ",".join(score for score in judge_scores[judge])
             vcf_out.write_record(record)
         vcf_out.close()
         # if out_path:
