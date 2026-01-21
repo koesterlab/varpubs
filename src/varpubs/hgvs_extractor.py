@@ -78,15 +78,12 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
     vcf = VCF(vcf_path)
     hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
     gene_index = get_annotation_field_index(vcf, "SYMBOL")
-    term_set: set[str] = set()
+    term_set: List[str] = []
 
     for record in vcf:
-        term_set.union(
-            set(
-                extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)
-            )
-        )
-    return term_set
+        terms = extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)
+        term_set.extend(terms)
+    return set(term_set)
 
 
 def extract_bioconcept_from_record(
