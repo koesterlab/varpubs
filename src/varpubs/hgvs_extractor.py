@@ -81,10 +81,17 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
     term_set: set[str] = set()
 
     for record in vcf:
-        term_set.union(set(extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)))
+        term_set.union(
+            set(
+                extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)
+            )
+        )
     return term_set
 
-def extract_bioconcept_from_record(record: Any, hgvsp_index: int, gene_index: int, species: str) -> List[str]:
+
+def extract_bioconcept_from_record(
+    record: Any, hgvsp_index: int, gene_index: int, species: str
+) -> List[str]:
     ann = record.INFO.get("ANN")
     bioconcepts = []
     if ann:
@@ -98,9 +105,7 @@ def extract_bioconcept_from_record(record: Any, hgvsp_index: int, gene_index: in
                 hgvsp = fields[hgvsp_index].split(":")[1]
                 gene = fields[gene_index]
                 if not hgvsp.startswith("p."):
-                    logger.warning(
-                        f"HGVSp entry does not seem to be valid: {hgvsp}"
-                    )
+                    logger.warning(f"HGVSp entry does not seem to be valid: {hgvsp}")
                     continue
 
                 # skip synonymous variants

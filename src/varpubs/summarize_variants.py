@@ -1,4 +1,3 @@
-import csv
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -10,7 +9,11 @@ from varpubs.cache import Cache, Judge, Summary
 from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from varpubs.pubmed_db import PubmedArticle, PubmedDB, BioconceptToPMID
 from varpubs.summarize import PubmedSummarizer
-from varpubs.hgvs_extractor import to_3_letter, bioconcept_to_hgvsp_gene, get_annotation_field_index, extract_bioconcept_from_record
+from varpubs.hgvs_extractor import (
+    bioconcept_to_hgvsp_gene,
+    get_annotation_field_index,
+    extract_bioconcept_from_record,
+)
 
 
 def summarize_variants(
@@ -35,15 +38,29 @@ def summarize_variants(
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
-        vcf.add_info_to_header({'ID': 'publication_summaries', 'Description': 'Summary of related PubMed articles for each transcript.',
-            'Type':'String', 'Number': '.'})
-        vcf.add_info_to_header({'ID': 'PMIDs', 'Description': 'PubMed IDs of related articles for each transcript.',
-            'Type':'String', 'Number': '.'})
+        vcf.add_info_to_header(
+            {
+                "ID": "publication_summaries",
+                "Description": "Summary of related PubMed articles for each transcript.",
+                "Type": "String",
+                "Number": ".",
+            }
+        )
+        vcf.add_info_to_header(
+            {
+                "ID": "PMIDs",
+                "Description": "PubMed IDs of related articles for each transcript.",
+                "Type": "String",
+                "Number": ".",
+            }
+        )
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
         for record in vcf:
-            bioconcepts = extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)
+            bioconcepts = extract_bioconcept_from_record(
+                record, hgvsp_index, gene_index, species
+            )
             rec_summaries = []
             rec_pmids = []
             for bioconcept in bioconcepts:
