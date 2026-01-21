@@ -36,6 +36,7 @@ class PubmedDB:
     path: Path
     vcf_paths: Iterable[Path]
     species: str
+    max_publications: int
     _engine: Optional[sqlalchemy.engine.base.Engine] = field(init=False, default=None)
 
     def deploy(self) -> None:
@@ -55,7 +56,12 @@ class PubmedDB:
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret
             publications = list()
-            publications = pg.search(bioconcept, max_ret=25, retries=5)
+            publications = pg.search(
+                bioconcept,
+                sections=["title", "abstract"],
+                max_ret=self.max_publications,
+                retries=5,
+            )
             pmids = [publication.pmid for publication in publications]
             relations[bioconcept] = pmids
 
