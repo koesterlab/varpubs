@@ -144,7 +144,9 @@ def summarize_variants(
                 final_summaries: list[tuple[PubmedArticle, str]] = [
                     (data["article"], data["summary"]) for data in summaries.values()
                 ]
-                judge_scores: List[dict[str, int]] = [data["scores"] for data in summaries.values()]
+                judge_scores: List[dict[str, int]] = [
+                    data["scores"] for data in summaries.values()
+                ]
 
                 hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
                 summary = summarizer.summarize(final_summaries, f"{gene} {hgvs}")
@@ -172,7 +174,9 @@ def summarize_variants(
             record.INFO["PMIDs"] = ",".join(rec_pmids)
             if judges:
                 for judge in judges:
-                    record.INFO[f"{judge}_score"] = ",".join(score for score in judge_scores[judge])
+                    record.INFO[f"{judge}_score"] = ",".join(
+                        score for score in judge_scores[judge]
+                    )
             vcf_out.write_record(record)
         vcf_out.close()
         # if out_path:
