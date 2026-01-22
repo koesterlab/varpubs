@@ -1,12 +1,12 @@
 import logging
+from statistics import mean
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 from sqlmodel import Session, select
 from cyvcf2 import VCF, Writer
 
 from varpubs.cache import Cache, Judge, Summary
-from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 from varpubs.pubmed_db import PubmedArticle, PubmedDB, BioconceptToPMID
 from varpubs.summarize import PubmedSummarizer
 from varpubs.hgvs_extractor import (
@@ -22,14 +22,15 @@ def summarize_variants(
     summarizer: PubmedSummarizer,
     species: str,
     out_path: Optional[Path] = None,
-    judges: Optional[list[str]] = None,
+    judges: Optional[List[str]] = None,
     output_cache: Optional[Path] = None,
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
     summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
-
+    if judges is None:
+        judges = []
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
@@ -53,29 +54,30 @@ def summarize_variants(
                 "Number": ".",
             }
         )
-        if judges:
-            for judge in judges:
-                vcf.add_info_to_header(
-                    {
-                        "ID": f"{judge}_score",
-                        "Description": f"Varpubs judgement score for {judge}.",
-                        "Type": "Integer",
-                        "Number": ".",
-                    }
-                )
+        for judge in judges:
+            vcf.add_info_to_header(
+                {
+                    "ID": f"{judge}_score",
+                    "Description": f"Varpubs judgement score for {judge}.",
+                    "Type": "Float",
+                    "Number": ".",
+                }
+            )
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
         if output_cache:
             ocache = Cache(output_cache)
             ocache.deploy()
+        else:
+            ocache = None
         for record in vcf:
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
             rec_summaries = []
             rec_pmids = []
-            rec_judgements = []
+            rec_judgements: List[List[Dict[str, int]]] = []
             for bioconcept in bioconcepts:
                 logging.info(f"Summarizing abstracts for: {bioconcept}")
                 mappings = session.exec(
@@ -93,22 +95,18 @@ def summarize_variants(
                         continue
 
                     if cache:
-                        cached_summary = (
-                            cache.lookup_summary(
-                                bioconcept,
-                                pmid,
-                                summarizer.settings.model,
-                                summarizer.summary_prompt_hash(),
-                            )
+                        cached_summary = cache.lookup_summary(
+                            bioconcept,
+                            pmid,
+                            summarizer.settings.model,
+                            summarizer.summary_prompt_hash(),
                         )
-                    elif output_cache:
-                        cached_summary = (
-                            ocache.lookup_summary(
-                                bioconcept,
-                                pmid,
-                                summarizer.settings.model,
-                                summarizer.summary_prompt_hash(),
-                            )
+                    elif ocache:
+                        cached_summary = ocache.lookup_summary(
+                            bioconcept,
+                            pmid,
+                            summarizer.settings.model,
+                            summarizer.summary_prompt_hash(),
                         )
                     else:
                         cached_summary = None
@@ -120,9 +118,7 @@ def summarize_variants(
                         else summarizer.summarize_article(article, f"{gene} {hgvsp}")
                     )
 
-                    scores: dict[str, int] = {}
-                    if not judges:
-                        judges = []
+                    scores: Dict[str, int] = {}
                     for judge in judges:
                         score = (
                             cache.lookup_judge(
@@ -154,20 +150,26 @@ def summarize_variants(
                         "scores": scores,
                         "term": bioconcept,
                     }
-                final_summaries: list[tuple[PubmedArticle, str]] = [
+                final_summaries: List[Tuple[PubmedArticle, str]] = [
                     (data["article"], data["summary"]) for data in summaries.values()
                 ]
-                judge_scores: List[dict[str, int]] = [
+                judge_scores: List[Dict[str, int]] = [
                     data["scores"] for data in summaries.values()
                 ]
 
                 hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                summary = summarizer.summarize(final_summaries, f"{gene} {hgvs}")
+                summary = (
+                    summarizer.summarize(final_summaries, f"{gene} {hgvs}")
+                    if final_summaries
+                    else "."
+                )
                 rec_summaries.append(summary.replace(",", "%2C"))
-                rec_pmids.append("|".join(f"{pmid}" for pmid in pmids))
+                rec_pmids.append(
+                    "|".join(f"{pmid}" for pmid in pmids) if pmids else "."
+                )
                 rec_judgements.append(judge_scores)
 
-                if output_cache:
+                if ocache:
                     s: List[Summary] = [
                         Summary(
                             term=data["term"],
@@ -182,15 +184,13 @@ def summarize_variants(
                     ocache.write_judges(judgements)
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
-            # if judges:
-            #     for judge in judges:
-            #         record.INFO[f"{judge}_score"] = ",".join(
-            #             score for score in judge_scores[judge]
-            #         )
+            for judge in judges:
+                mean_scores = [
+                    str(mean(pmid_score[judge] for pmid_score in transcript_scores))
+                    if transcript_scores
+                    else "."
+                    for transcript_scores in rec_judgements
+                ]
+                record.INFO[f"{judge}_score"] = ",".join(mean_scores)
             vcf_out.write_record(record)
         vcf_out.close()
-        # if out_path:
-        #     with open(out_path, "w", newline="", encoding="utf-8") as f:
-        #         writer = csv.writer(f)
-        #         writer.writerow(["symbol", "hgvsp", "summary", "pmids"])
-        #         writer.writerows(rows)

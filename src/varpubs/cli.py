@@ -39,7 +39,7 @@ class SummarizeArgs:
     - output: Path to save the final variant summary file (bcf).
     - cache: Path to cache file to look up summary results instead of LLM usage
     - api_key: Hugging Face API token for model access.
-    - judges: List of judges for ranking articles (e.g., "therapy relevance"1)
+    - judges: List of judges for ranking articles (e.g., "therapy relevance")
     - llm_url: Base URL for LLM API (Must follow the openai API format)
     - species: Species for variant annotation (default: human).
     - model: The LLM model used for summarization (default: medgemma-27b-it).
@@ -55,7 +55,7 @@ class SummarizeArgs:
     species: str = "human"
     model: str = "medgemma-27b-it"
     role: str = "physician"
-    judges: Optional[list[str]] = None
+    judges: Optional[List[str]] = None
     api_key: Optional[str] = ""
     output_cache: Optional[Path] = None
 
