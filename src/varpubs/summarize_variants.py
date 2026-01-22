@@ -67,6 +67,9 @@ def summarize_variants(
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
+        if output_cache:
+            ocache = Cache(output_cache)
+            ocache.deploy()
         for record in vcf:
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
@@ -90,16 +93,27 @@ def summarize_variants(
                     if not article:
                         continue
 
-                    cached_summary = (
-                        cache.lookup_summary(
-                            bioconcept,
-                            pmid,
-                            summarizer.settings.model,
-                            summarizer.summary_prompt_hash(),
+                    if cache:
+                        cached_summary = (
+                            cache.lookup_summary(
+                                bioconcept,
+                                pmid,
+                                summarizer.settings.model,
+                                summarizer.summary_prompt_hash(),
+                            )
                         )
-                        if cache
-                        else None
-                    )
+                    elif output_cache:
+                        cached_summary = (
+                            ocache.lookup_summary(
+                                bioconcept,
+                                pmid,
+                                summarizer.settings.model,
+                                summarizer.summary_prompt_hash(),
+                            )
+                        )
+                    else:
+                        cached_summary = None
+
                     hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
                     summary_text = (
                         cached_summary.summary
@@ -155,8 +169,6 @@ def summarize_variants(
                 rec_judgements.append(judge_scores)
 
                 if output_cache:
-                    ocache = Cache(output_cache)
-                    ocache.deploy()
                     s: List[Summary] = [
                         Summary(
                             term=data["term"],
@@ -172,11 +184,11 @@ def summarize_variants(
 
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
-            if judges:
-                for judge in judges:
-                    record.INFO[f"{judge}_score"] = ",".join(
-                        score for score in judge_scores[judge]
-                    )
+            # if judges:
+            #     for judge in judges:
+            #         record.INFO[f"{judge}_score"] = ",".join(
+            #             score for score in judge_scores[judge]
+            #         )
             vcf_out.write_record(record)
         vcf_out.close()
         # if out_path:
