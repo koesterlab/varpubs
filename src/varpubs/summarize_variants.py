@@ -30,7 +30,6 @@ def summarize_variants(
     summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
 
-    bioconcepts = extract_hgvsp_from_vcf(str(vcf_path), species)
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
@@ -60,7 +59,7 @@ def summarize_variants(
                     {
                         "ID": f"{judge}_score",
                         "Description": f"Varpubs judgement score for {judge}.",
-                        "Type": "Number",
+                        "Type": "Integer",
                         "Number": ".",
                     }
                 )
@@ -181,7 +180,6 @@ def summarize_variants(
                     ]
                     ocache.write_summaries(s)
                     ocache.write_judges(judgements)
-
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
             # if judges:
