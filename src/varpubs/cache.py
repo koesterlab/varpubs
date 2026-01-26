@@ -127,6 +127,13 @@ class Cache:
 
     def write_judges(self, judges: List[Judge]) -> None:
         with Session(self.engine) as session:
+            judges = [
+                judge
+                for judge in judges
+                if self.lookup_judge(
+                    judge.term, judge.pmid, judge.model, judge.judge, judge.prompt_hash
+                )
+            ]
             session.add_all(judges)
             session.commit()
 
