@@ -135,11 +135,7 @@ def summarize_variants(
                             if cache
                             else None
                         )
-                        logging.info(
-                            f"Score for judge {judge} and pmid {pmid}: {score}"
-                        )
                         if not score:
-                            logging.info(f"No score found for {judge}: {score}")
                             score = summarizer.judge(article, judge)
                             judgements.append(
                                 Judge(
