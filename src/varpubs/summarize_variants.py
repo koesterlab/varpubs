@@ -109,6 +109,9 @@ def summarize_variants(
                             summarizer.summary_prompt_hash(),
                         )
                     else:
+                        logging.info(
+                            f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
+                        )
                         cached_summary = None
 
                     hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)

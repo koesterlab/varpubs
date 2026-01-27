@@ -5,6 +5,7 @@ from hgvs.parser import Parser
 
 logger = logging.getLogger(__name__)
 
+
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
     for rec in vcf.header_iter():
         info = rec.info()
