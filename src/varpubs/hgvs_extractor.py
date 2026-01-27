@@ -2,6 +2,7 @@ import logging
 from cyvcf2 import VCF
 from typing import Tuple, List, Any
 from hgvs.parser import Parser
+
 logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
 AA3_TO_1 = {
@@ -77,11 +78,17 @@ def extract_bioconcept_from_record(
                 # skip synonymous variants
                 if "%3D" in hgvsp:
                     continue
-                hgvsp_single = hgvs_parser.parse(hgvsp).format(conf={"p_3_letter": False}).split(":")[1]
+                hgvsp_single = (
+                    hgvs_parser.parse(hgvsp)
+                    .format(conf={"p_3_letter": False})
+                    .split(":")[1]
+                )
                 gene = fields[gene_index]
 
                 # Create bioconcept for querying pubtator
-                bioconcepts.append(hgvsp_gene_to_bioconcept(hgvsp_single, gene, species))
+                bioconcepts.append(
+                    hgvsp_gene_to_bioconcept(hgvsp_single, gene, species)
+                )
     return bioconcepts
 
 
