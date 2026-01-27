@@ -1,7 +1,7 @@
 import logging
 from cyvcf2 import VCF
 from typing import Tuple, List, Any
-
+from hgvs.parser import Parser
 logger = logging.getLogger(__name__)
 # 3-letter to 1-letter amino acid codes
 AA3_TO_1 = {
@@ -29,34 +29,6 @@ AA3_TO_1 = {
     "*": "*",
     "del": "del",
 }
-
-AA1_TO_3 = {
-    "A": "Ala",
-    "R": "Arg",
-    "N": "Asn",
-    "D": "Asp",
-    "C": "Cys",
-    "E": "Glu",
-    "Q": "Gln",
-    "G": "Gly",
-    "H": "His",
-    "I": "Ile",
-    "L": "Leu",
-    "K": "Lys",
-    "M": "Met",
-    "F": "Phe",
-    "P": "Pro",
-    "S": "Ser",
-    "T": "Thr",
-    "W": "Trp",
-    "Y": "Tyr",
-    "V": "Val",
-    "*": "Ter",
-}
-
-
-def to_3_letter(term: str) -> str:
-    return "".join(AA1_TO_3.get(aa, aa) for aa in term)
 
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
@@ -92,6 +64,7 @@ def extract_bioconcept_from_record(
 ) -> List[str]:
     ann = record.INFO.get("ANN")
     bioconcepts = []
+    hgvs_parser = Parser()
     if ann:
         for ann_entry in ann.split(","):
             fields = ann_entry.split("|")
@@ -100,21 +73,15 @@ def extract_bioconcept_from_record(
                 if not fields[hgvsp_index]:
                     logger.warning(f"HGVSp entry is empty: {ann_entry}")
                     continue
-                hgvsp = fields[hgvsp_index].split(":")[1]
-                gene = fields[gene_index]
-                if not hgvsp.startswith("p."):
-                    logger.warning(f"HGVSp entry does not seem to be valid: {hgvsp}")
-                    continue
-
+                hgvsp = fields[hgvsp_index]
                 # skip synonymous variants
                 if "%3D" in hgvsp:
                     continue
-
-                for long, short in AA3_TO_1.items():
-                    hgvsp = hgvsp.replace(long, short)
+                hgvsp_single = hgvs_parser.parse(hgvsp).format(conf={"p_3_letter": False}).split(":")[1]
+                gene = fields[gene_index]
 
                 # Create bioconcept for querying pubtator
-                bioconcepts.append(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
+                bioconcepts.append(hgvsp_gene_to_bioconcept(hgvsp_single, gene, species))
     return bioconcepts
 
 
