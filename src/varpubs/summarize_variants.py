@@ -38,6 +38,8 @@ def summarize_variants(
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
+        total_record = sum(1 for _ in vcf)
+        vcf = VCF(vcf_path)
         vcf.add_info_to_header(
             {
                 "ID": "publication_summaries",
@@ -72,7 +74,7 @@ def summarize_variants(
         else:
             ocache = None
         for i, record in enumerate(vcf, start=1):
-            logging.info(f"Processing vcf record {i}/{len(list(vcf))}")
+            logging.info(f"Processing vcf record {i}/{total_record}")
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
