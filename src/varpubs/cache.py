@@ -96,7 +96,7 @@ class Cache:
             summaries = [
                 summary
                 for summary in summaries
-                if self.lookup_summary(
+                if not self.lookup_summary(
                     summary.term, summary.pmid, summary.model, summary.prompt_hash
                 )
             ]
