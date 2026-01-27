@@ -71,8 +71,7 @@ def summarize_variants(
             ocache.deploy()
         else:
             ocache = None
-        for i, record in enumerate(vcf):
-            logging.info(f"Processing vcf record {i + 1}/{len(vcf)}")
+        for record in vcf:
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
