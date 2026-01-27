@@ -109,17 +109,18 @@ def summarize_variants(
                             summarizer.summary_prompt_hash(),
                         )
                     else:
-                        logging.info(
-                            f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
-                        )
                         cached_summary = None
 
                     hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                    summary_text = (
-                        cached_summary.summary
-                        if cached_summary
-                        else summarizer.summarize_article(article, f"{gene} {hgvsp}")
-                    )
+                    if cached_summary:
+                        summary_text = cached_summary.summary
+                    else:
+                        logging.info(
+                            f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
+                        )
+                        summary_text = summarizer.summarize_article(
+                            article, f"{gene} {hgvsp}"
+                        )
 
                     scores: Dict[str, int] = {}
                     for judge in judges:
@@ -134,7 +135,11 @@ def summarize_variants(
                             if cache
                             else None
                         )
+                        logging.info(
+                            f"Score for judge {judge} and pmid {pmid}: {score}"
+                        )
                         if not score:
+                            logging.info(f"No score found for {judge}: {score}")
                             score = summarizer.judge(article, judge)
                             judgements.append(
                                 Judge(

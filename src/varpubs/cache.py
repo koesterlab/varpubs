@@ -119,7 +119,7 @@ class Cache:
             ).first()
             if j:
                 logger.info(
-                    f"Found judgement cache entry for {term} with judge term {judge}"
+                    f"Found judgement cache entry for {term} with judge term {judge} and PMID {pmid}: {j.score}"
                 )
                 return j.score
             else:
