@@ -4,33 +4,6 @@ from typing import Tuple, List, Any
 from hgvs.parser import Parser
 
 logger = logging.getLogger(__name__)
-# 3-letter to 1-letter amino acid codes
-AA3_TO_1 = {
-    "Ala": "A",
-    "Arg": "R",
-    "Asn": "N",
-    "Asp": "D",
-    "Cys": "C",
-    "Glu": "E",
-    "Gln": "Q",
-    "Gly": "G",
-    "His": "H",
-    "Ile": "I",
-    "Leu": "L",
-    "Lys": "K",
-    "Met": "M",
-    "Phe": "F",
-    "Pro": "P",
-    "Ser": "S",
-    "Thr": "T",
-    "Trp": "W",
-    "Tyr": "Y",
-    "Val": "V",
-    "Ter": "*",
-    "*": "*",
-    "del": "del",
-}
-
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
     for rec in vcf.header_iter():
