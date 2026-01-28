@@ -53,7 +53,10 @@ class TranscriptRecord:
             return "."
 
     def join_pmids(self) -> str:
-        return "|".join(str(pmid) for pmid in list(self.pmids))
+        if self.pmids:
+            return "|".join(str(pmid) for pmid in list(self.pmids))
+        else:
+            "."
 
 
 def summarize_variants(
