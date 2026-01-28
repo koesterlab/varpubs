@@ -1,7 +1,8 @@
 import logging
 from statistics import mean
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Set
+from dataclasses import dataclass
 
 from sqlmodel import Session, select
 from cyvcf2 import VCF, Writer
@@ -14,6 +15,45 @@ from varpubs.hgvs_extractor import (
     get_annotation_field_index,
     extract_bioconcept_from_record,
 )
+
+SUMMARY_VCF_HEADER = {
+    "ID": "publication_summaries",
+    "Description": "Summary of related PubMed articles for each transcript.",
+    "Type": "String",
+    "Number": ".",
+}
+
+PMID_VCF_HEADER = {
+    "ID": "PMIDs",
+    "Description": "PubMed IDs of related articles for each transcript.",
+    "Type": "String",
+    "Number": ".",
+}
+
+
+def judge_vcf_header(judge: str) -> Dict:
+    return {
+        "ID": f"{judge}_score",
+        "Description": f"Varpubs judgement score for {judge}.",
+        "Type": "Float",
+        "Number": ".",
+    }
+
+
+@dataclass
+class TranscriptRecord:
+    pmids: Set[int]
+    summary: str
+    judges: List[Dict[str, int]]
+
+    def mean_score(self, judge: str) -> str:
+        if self.judges:
+            return str(mean(pmid_score[judge] for pmid_score in self.judges))
+        else:
+            return "."
+
+    def joined_pmids(self) -> str:
+        return "|".join(str(pmid) for pmid in list(self.pmids))
 
 
 def summarize_variants(
@@ -39,31 +79,10 @@ def summarize_variants(
         vcf = VCF(vcf_path)
         total_record = sum(1 for _ in vcf)
         vcf = VCF(vcf_path)
-        vcf.add_info_to_header(
-            {
-                "ID": "publication_summaries",
-                "Description": "Summary of related PubMed articles for each transcript.",
-                "Type": "String",
-                "Number": ".",
-            }
-        )
-        vcf.add_info_to_header(
-            {
-                "ID": "PMIDs",
-                "Description": "PubMed IDs of related articles for each transcript.",
-                "Type": "String",
-                "Number": ".",
-            }
-        )
+        vcf.add_info_to_header(SUMMARY_VCF_HEADER)
+        vcf.add_info_to_header(PMID_VCF_HEADER)
         for judge in judges:
-            vcf.add_info_to_header(
-                {
-                    "ID": f"{judge}_score",
-                    "Description": f"Varpubs judgement score for {judge}.",
-                    "Type": "Float",
-                    "Number": ".",
-                }
-            )
+            vcf.add_info_to_header(judge_vcf_header(judge))
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
@@ -77,10 +96,7 @@ def summarize_variants(
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
-            final_summaries = {}
-            rec_summaries = []
-            rec_pmids = []
-            rec_judgements: List[List[Dict[str, int]]] = []
+            transcript_records = {}
             for bioconcept in bioconcepts:
                 judgements: List[Dict] = []
                 summaries = {}
@@ -90,10 +106,7 @@ def summarize_variants(
                     )
                 ).all()
                 pmids = set(m.pmid for m in mappings)
-                rec_pmids.append(
-                    "|".join(f"{pmid}" for pmid in pmids) if pmids else "."
-                )
-                if not final_summaries.get(bioconcept):
+                if not transcript_records.get(bioconcept):
                     logging.info(f"Summarizing abstracts for: {bioconcept}")
 
                     for pmid in pmids:
@@ -177,10 +190,11 @@ def summarize_variants(
                         if pmids_summaries
                         else "."
                     )
-                    final_summaries[bioconcept] = final_summary
-                    rec_summaries.append(final_summary.replace(",", "%2C"))
-                    rec_judgements.append(judge_scores)
-
+                    transcript_records[bioconcept] = TranscriptRecord(
+                        pmids=pmids,
+                        summary=final_summary.replace(",", "%2C"),
+                        judges=judge_scores,
+                    )
                     if ocache:
                         s: List[Summary] = [
                             Summary(
@@ -194,19 +208,19 @@ def summarize_variants(
                         ]
                         ocache.write_summaries(s)
                         ocache.write_judges([Judge(**j) for j in judgements])
-                else:
-                    rec_summaries.append(
-                        final_summaries.get(bioconcept, "").replace(",", "%2C")
-                    )
-            record.INFO["publication_summaries"] = ",".join(rec_summaries)
-            record.INFO["PMIDs"] = ",".join(rec_pmids)
+
+            transcript_infos = [
+                transcript_records[bioconcept] for bioconcept in bioconcepts
+            ]
+            record.INFO["publication_summaries"] = ",".join(
+                [record.summary for record in transcript_infos]
+            )
+            record.INFO["PMIDs"] = ",".join(
+                [record.join_pmids() for record in transcript_infos]
+            )
             for judge in judges:
-                mean_scores = [
-                    str(mean(pmid_score[judge] for pmid_score in transcript_scores))
-                    if transcript_scores
-                    else "."
-                    for transcript_scores in rec_judgements
-                ]
-                record.INFO[f"{judge}_score"] = ",".join(mean_scores)
+                record.INFO[f"{judge}_score"] = ",".join(
+                    [record.mean_score() for record in transcript_infos]
+                )
             vcf_out.write_record(record)
         vcf_out.close()
