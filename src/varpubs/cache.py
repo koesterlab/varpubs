@@ -130,7 +130,7 @@ class Cache:
             judges = [
                 judge
                 for judge in judges
-                if self.lookup_judge(
+                if not self.lookup_judge(
                     judge.term, judge.pmid, judge.model, judge.judge, judge.prompt_hash
                 )
             ]
