@@ -77,119 +77,127 @@ def summarize_variants(
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
+            final_summaries = {}
             rec_summaries = []
             rec_pmids = []
             rec_judgements: List[List[Dict[str, int]]] = []
             for bioconcept in bioconcepts:
                 judgements: List[Dict] = []
                 summaries = {}
-                logging.info(f"Summarizing abstracts for: {bioconcept}")
                 mappings = session.exec(
                     select(BioconceptToPMID).where(
                         BioconceptToPMID.bioconcept == bioconcept
                     )
                 ).all()
                 pmids = set(m.pmid for m in mappings)
-
-                for pmid in pmids:
-                    article = session.exec(
-                        select(PubmedArticle).where(PubmedArticle.pmid == pmid)
-                    ).first()
-                    if not article:
-                        continue
-
-                    if cache:
-                        cached_summary = cache.lookup_summary(
-                            bioconcept,
-                            pmid,
-                            summarizer.settings.model,
-                            summarizer.summary_prompt_hash(),
-                        )
-                    elif ocache:
-                        cached_summary = ocache.lookup_summary(
-                            bioconcept,
-                            pmid,
-                            summarizer.settings.model,
-                            summarizer.summary_prompt_hash(),
-                        )
-                    else:
-                        cached_summary = None
-
-                    hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                    if cached_summary:
-                        summary_text = cached_summary.summary
-                    else:
-                        logging.info(
-                            f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
-                        )
-                        summary_text = summarizer.summarize_article(
-                            article, f"{gene} {hgvsp}"
-                        )
-
-                    scores: Dict[str, int] = {}
-                    for judge in judges:
-                        score = (
-                            cache.lookup_judge(
-                                bioconcept,
-                                pmid,
-                                summarizer.settings.model,
-                                judge,
-                                summarizer.judge_prompt_hash(),
-                            )
-                            if cache
-                            else None
-                        )
-                        if not score:
-                            score = summarizer.judge(article, judge)
-                            judgements.append(
-                                Judge(
-                                    term=bioconcept,
-                                    pmid=pmid,
-                                    model=summarizer.settings.model,
-                                    judge=judge,
-                                    score=score,
-                                    prompt_hash=summarizer.judge_prompt_hash(),
-                                ).model_dump()
-                            )
-                        scores[judge] = score
-                    summaries[pmid] = {
-                        "article": article,
-                        "summary": summary_text,
-                        "scores": scores,
-                        "term": bioconcept,
-                    }
-                final_summaries: List[Tuple[PubmedArticle, str]] = [
-                    (data["article"], data["summary"]) for data in summaries.values()
-                ]
-                judge_scores: List[Dict[str, int]] = [
-                    data["scores"] for data in summaries.values()
-                ]
-
-                hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                summary = (
-                    summarizer.summarize(final_summaries, f"{gene} {hgvs}")
-                    if final_summaries
-                    else "."
-                )
-                rec_summaries.append(summary.replace(",", "%2C"))
                 rec_pmids.append(
                     "|".join(f"{pmid}" for pmid in pmids) if pmids else "."
                 )
-                rec_judgements.append(judge_scores)
+                if not final_summaries.get(bioconcept):
+                    logging.info(f"Summarizing abstracts for: {bioconcept}")
 
-                if ocache:
-                    s: List[Summary] = [
-                        Summary(
-                            term=data["term"],
-                            pmid=pmid,
-                            model=summarizer.settings.model,
-                            summary=data["summary"],
-                            prompt_hash=summarizer.summary_prompt_hash(),
-                        )
-                        for pmid, data in summaries.items()
+                    for pmid in pmids:
+                        article = session.exec(
+                            select(PubmedArticle).where(PubmedArticle.pmid == pmid)
+                        ).first()
+                        if not article:
+                            continue
+
+                        if cache:
+                            cached_summary = cache.lookup_summary(
+                                bioconcept,
+                                pmid,
+                                summarizer.settings.model,
+                                summarizer.summary_prompt_hash(),
+                            )
+                        elif ocache:
+                            cached_summary = ocache.lookup_summary(
+                                bioconcept,
+                                pmid,
+                                summarizer.settings.model,
+                                summarizer.summary_prompt_hash(),
+                            )
+                        else:
+                            cached_summary = None
+
+                        hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
+                        if cached_summary:
+                            summary_text = cached_summary.summary
+                        else:
+                            logging.info(
+                                f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
+                            )
+                            summary_text = summarizer.summarize_article(
+                                article, f"{gene} {hgvsp}"
+                            )
+
+                        scores: Dict[str, int] = {}
+                        for judge in judges:
+                            score = (
+                                cache.lookup_judge(
+                                    bioconcept,
+                                    pmid,
+                                    summarizer.settings.model,
+                                    judge,
+                                    summarizer.judge_prompt_hash(),
+                                )
+                                if cache
+                                else None
+                            )
+                            if not score:
+                                score = summarizer.judge(article, judge)
+                                judgements.append(
+                                    Judge(
+                                        term=bioconcept,
+                                        pmid=pmid,
+                                        model=summarizer.settings.model,
+                                        judge=judge,
+                                        score=score,
+                                        prompt_hash=summarizer.judge_prompt_hash(),
+                                    ).model_dump()
+                                )
+                            scores[judge] = score
+                        summaries[pmid] = {
+                            "article": article,
+                            "summary": summary_text,
+                            "scores": scores,
+                            "term": bioconcept,
+                        }
+                    pmids_summaries: List[Tuple[PubmedArticle, str]] = [
+                        (data["article"], data["summary"])
+                        for data in summaries.values()
                     ]
-                    ocache.write_summaries(s)
-                    ocache.write_judges([Judge(**j) for j in judgements])
+                    judge_scores: List[Dict[str, int]] = [
+                        data["scores"] for data in summaries.values()
+                    ]
+
+                    hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
+                    final_summary = (
+                        summarizer.summarize(pmids_summaries, f"{gene} {hgvs}")
+                        if pmids_summaries
+                        else "."
+                    )
+                    final_summaries[bioconcept] = final_summary
+                    rec_summaries.append(final_summary.replace(",", "%2C"))
+                    rec_judgements.append(judge_scores)
+
+                    if ocache:
+                        s: List[Summary] = [
+                            Summary(
+                                term=data["term"],
+                                pmid=pmid,
+                                model=summarizer.settings.model,
+                                summary=data["summary"],
+                                prompt_hash=summarizer.summary_prompt_hash(),
+                            )
+                            for pmid, data in summaries.items()
+                        ]
+                        ocache.write_summaries(s)
+                        ocache.write_judges([Judge(**j) for j in judgements])
+                else:
+                    rec_summaries.append(
+                        final_summaries.get(bioconcept, "").replace(",", "%2C")
+                    )
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
             for judge in judges:
