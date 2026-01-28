@@ -52,7 +52,7 @@ class TranscriptRecord:
         else:
             return "."
 
-    def joined_pmids(self) -> str:
+    def join_pmids(self) -> str:
         return "|".join(str(pmid) for pmid in list(self.pmids))
 
 
