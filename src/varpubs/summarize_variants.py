@@ -56,7 +56,7 @@ class TranscriptRecord:
         if self.pmids:
             return "|".join(str(pmid) for pmid in list(self.pmids))
         else:
-            "."
+            return "."
 
 
 def summarize_variants(
