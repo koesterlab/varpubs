@@ -34,7 +34,6 @@ def summarize_variants(
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
-    judgements: List[Dict] = []
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
@@ -82,6 +81,8 @@ def summarize_variants(
             rec_pmids = []
             rec_judgements: List[List[Dict[str, int]]] = []
             for bioconcept in bioconcepts:
+                judgements: List[Dict] = []
+                summaries = {}
                 logging.info(f"Summarizing abstracts for: {bioconcept}")
                 mappings = session.exec(
                     select(BioconceptToPMID).where(
@@ -89,7 +90,7 @@ def summarize_variants(
                     )
                 ).all()
                 pmids = set(m.pmid for m in mappings)
-                summaries = {}
+
                 for pmid in pmids:
                     article = session.exec(
                         select(PubmedArticle).where(PubmedArticle.pmid == pmid)
