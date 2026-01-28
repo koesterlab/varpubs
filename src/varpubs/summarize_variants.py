@@ -96,7 +96,7 @@ def summarize_variants(
             bioconcepts = extract_bioconcept_from_record(
                 record, hgvsp_index, gene_index, species
             )
-            transcript_records = {}
+            transcript_records: Dict[str, TranscriptRecord] = {}
             for bioconcept in bioconcepts:
                 judgements: List[Dict] = []
                 summaries = {}
@@ -209,7 +209,7 @@ def summarize_variants(
                         ocache.write_summaries(s)
                         ocache.write_judges([Judge(**j) for j in judgements])
 
-            transcript_infos = [
+            transcript_infos: List[TranscriptRecord] = [
                 transcript_records[bioconcept] for bioconcept in bioconcepts
             ]
             record.INFO["publication_summaries"] = ",".join(
