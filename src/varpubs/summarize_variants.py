@@ -220,7 +220,7 @@ def summarize_variants(
             )
             for judge in judges:
                 record.INFO[f"{judge}_score"] = ",".join(
-                    [record.mean_score() for record in transcript_infos]
+                    [record.mean_score(judge) for record in transcript_infos]
                 )
             vcf_out.write_record(record)
         vcf_out.close()
