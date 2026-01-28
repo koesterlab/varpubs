@@ -34,7 +34,7 @@ def summarize_variants(
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
-    judgements: List[Judge] = []
+    judgements: List[Dict] = []
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
@@ -148,7 +148,7 @@ def summarize_variants(
                                     judge=judge,
                                     score=score,
                                     prompt_hash=summarizer.judge_prompt_hash(),
-                                )
+                                ).model_dump()
                             )
                         scores[judge] = score
                     summaries[pmid] = {
@@ -188,7 +188,7 @@ def summarize_variants(
                         for pmid, data in summaries.items()
                     ]
                     ocache.write_summaries(s)
-                    ocache.write_judges(judgements)
+                    ocache.write_judges([Judge(**j) for j in judgements])
             record.INFO["publication_summaries"] = ",".join(rec_summaries)
             record.INFO["PMIDs"] = ",".join(rec_pmids)
             for judge in judges:
