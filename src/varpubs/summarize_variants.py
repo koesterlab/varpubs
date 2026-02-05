@@ -15,29 +15,7 @@ from varpubs.hgvs_extractor import (
     get_annotation_field_index,
     extract_bioconcept_from_record,
 )
-
-SUMMARY_VCF_HEADER = {
-    "ID": "publication_summaries",
-    "Description": "Summary of related PubMed articles for each transcript.",
-    "Type": "String",
-    "Number": ".",
-}
-
-PMID_VCF_HEADER = {
-    "ID": "PMIDs",
-    "Description": "PubMed IDs of related articles for each transcript.",
-    "Type": "String",
-    "Number": ".",
-}
-
-
-def judge_vcf_header(judge: str) -> Dict:
-    return {
-        "ID": f"{judge}_score",
-        "Description": f"Varpubs judgement score for {judge}.",
-        "Type": "Float",
-        "Number": ".",
-    }
+from varpubs.utils import extend_vep_header
 
 
 @dataclass
@@ -54,7 +32,7 @@ class TranscriptRecord:
 
     def join_pmids(self) -> str:
         if self.pmids:
-            return "|".join(str(pmid) for pmid in list(self.pmids))
+            return "&".join(str(pmid) for pmid in list(self.pmids))
         else:
             return "."
 
@@ -82,10 +60,15 @@ def summarize_variants(
         vcf = VCF(vcf_path)
         total_record = sum(1 for _ in vcf)
         vcf = VCF(vcf_path)
-        vcf.add_info_to_header(SUMMARY_VCF_HEADER)
-        vcf.add_info_to_header(PMID_VCF_HEADER)
-        for judge in judges:
-            vcf.add_info_to_header(judge_vcf_header(judge))
+        extend_vep_header(
+            vcf,
+            [
+                "VARPUBS_SUMMARY",
+                "VARPUBS_PMIDS",
+                *[f"VARPUBS_{j}_SCORE" for j in judges],
+            ],
+            "ANN",
+        )
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
@@ -215,15 +198,20 @@ def summarize_variants(
             transcript_infos: List[TranscriptRecord] = [
                 transcript_records[bioconcept] for bioconcept in bioconcepts
             ]
-            record.INFO["publication_summaries"] = ",".join(
-                [record.summary for record in transcript_infos]
-            )
-            record.INFO["PMIDs"] = ",".join(
-                [record.join_pmids() for record in transcript_infos]
-            )
-            for judge in judges:
-                record.INFO[f"{judge}_score"] = ",".join(
-                    [record.mean_score(judge) for record in transcript_infos]
-                )
+            # get record info ANN/CSQ, split on transcripts, then zip together with our TranscriptRecord list and append in correct order according
+            # to extend_vep_header call earlier
+            transcript_annotations: List[str] = record.INFO["ANN"].split(",")
+            ann: List[str] = []
+            for transcript_info, ann_str in zip(
+                transcript_infos, transcript_annotations
+            ):
+                transcript_annotation = f"{ann_str} | {transcript_info.summary} | {transcript_info.join_pmids()}"
+                for judge in judges:
+                    transcript_annotation = (
+                        f"{transcript_annotation} | {transcript_info.mean_score(judge)}"
+                    )
+                ann.append(transcript_annotation)
+
+            record.INFO["ANN"] = ",".join(transcript_annotations)
             vcf_out.write_record(record)
         vcf_out.close()
