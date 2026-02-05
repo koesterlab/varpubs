@@ -1,62 +1,9 @@
 import logging
 from cyvcf2 import VCF
-from typing import Tuple
+from typing import Tuple, List, Any
+from hgvs.parser import Parser
 
 logger = logging.getLogger(__name__)
-# 3-letter to 1-letter amino acid codes
-AA3_TO_1 = {
-    "Ala": "A",
-    "Arg": "R",
-    "Asn": "N",
-    "Asp": "D",
-    "Cys": "C",
-    "Glu": "E",
-    "Gln": "Q",
-    "Gly": "G",
-    "His": "H",
-    "Ile": "I",
-    "Leu": "L",
-    "Lys": "K",
-    "Met": "M",
-    "Phe": "F",
-    "Pro": "P",
-    "Ser": "S",
-    "Thr": "T",
-    "Trp": "W",
-    "Tyr": "Y",
-    "Val": "V",
-    "Ter": "*",
-    "*": "*",
-    "del": "del",
-}
-
-AA1_TO_3 = {
-    "A": "Ala",
-    "R": "Arg",
-    "N": "Asn",
-    "D": "Asp",
-    "C": "Cys",
-    "E": "Glu",
-    "Q": "Gln",
-    "G": "Gly",
-    "H": "His",
-    "I": "Ile",
-    "L": "Leu",
-    "K": "Lys",
-    "M": "Met",
-    "F": "Phe",
-    "P": "Pro",
-    "S": "Ser",
-    "T": "Thr",
-    "W": "Trp",
-    "Y": "Tyr",
-    "V": "Val",
-    "*": "Ter",
-}
-
-
-def to_3_letter(term: str) -> str:
-    return "".join(AA1_TO_3.get(aa, aa) for aa in term)
 
 
 def get_annotation_field_index(vcf: VCF, field: str) -> int:
@@ -78,37 +25,45 @@ def extract_hgvsp_from_vcf(vcf_path: str, species: str) -> set[str]:
     vcf = VCF(vcf_path)
     hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
     gene_index = get_annotation_field_index(vcf, "SYMBOL")
-    term_set: set[str] = set()
+    terms: List[str] = []
 
     for record in vcf:
-        ann = record.INFO.get("ANN")
-        if ann:
-            for ann_entry in ann.split(","):
-                fields = ann_entry.split("|")
-                # TODO: Consider filtering only canonical transcripts
-                if len(fields) > max(hgvsp_index, gene_index):
-                    if not fields[hgvsp_index]:
-                        logger.warning(f"HGVSp entry is empty: {ann_entry}")
-                        continue
-                    hgvsp = fields[hgvsp_index].split(":")[1]
-                    gene = fields[gene_index]
-                    if not hgvsp.startswith("p."):
-                        logger.warning(
-                            f"HGVSp entry does not seem to be valid: {hgvsp}"
-                        )
-                        continue
+        terms.extend(
+            extract_bioconcept_from_record(record, hgvsp_index, gene_index, species)
+        )
+    return set(terms)
 
-                    # skip synonymous variants
-                    if "%3D" in hgvsp:
-                        continue
 
-                    for long, short in AA3_TO_1.items():
-                        hgvsp = hgvsp.replace(long, short)
+def extract_bioconcept_from_record(
+    record: Any, hgvsp_index: int, gene_index: int, species: str
+) -> List[str]:
+    ann = record.INFO.get("ANN")
+    bioconcepts = []
+    hgvs_parser = Parser()
+    if ann:
+        for ann_entry in ann.split(","):
+            fields = ann_entry.split("|")
+            # TODO: Consider filtering only canonical transcripts
+            if len(fields) > max(hgvsp_index, gene_index):
+                if not fields[hgvsp_index]:
+                    logger.warning(f"HGVSp entry is empty: {ann_entry}")
+                    continue
+                hgvsp = fields[hgvsp_index]
+                # skip synonymous variants
+                if "%3D" in hgvsp:
+                    continue
+                hgvsp_single = (
+                    hgvs_parser.parse(hgvsp)
+                    .format(conf={"p_3_letter": False})
+                    .split(":")[1]
+                )
+                gene = fields[gene_index]
 
-                    # Create bioconcept for querying pubtator
-                    term_set.add(hgvsp_gene_to_bioconcept(hgvsp, gene, species))
-
-    return term_set
+                # Create bioconcept for querying pubtator
+                bioconcepts.append(
+                    hgvsp_gene_to_bioconcept(hgvsp_single, gene, species)
+                )
+    return bioconcepts
 
 
 def hgvsp_gene_to_bioconcept(hgvsp: str, gene: str, species: str) -> str:

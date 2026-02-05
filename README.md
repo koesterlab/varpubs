@@ -9,8 +9,7 @@
 
 Identifying treatment-relevant evidence for rare or poorly characterized mutations often requires reviewing large volumes of PubMed articles. *varpubs* streamlines this process by querying literature for variant-linked publications and generating concise, role-specific three-sentence summaries using a large language model (LLM). Optional LLM-based “judges” can score articles based on user given terms (e.g., therapy relevance) to prioritize relevant articles.
 
-Variant-level summaries are written to a TSV file for direct use in clinical dashboards, molecular tumor boards, or downstream pipelines.
-A caching system stores previously generated summaries to reduce runtime in subsequent analyses.
+Variant-level summaries per transcript are annotated to the given input VCF file as well as the PubMed IDs of the used literature sources and mean judge scores for every given entry via `--judges`. A caching system stores previously generated summaries to reduce runtime in subsequent analyses.
 
 ## Installation
 
@@ -43,7 +42,7 @@ varpubs summarize-variants \
   --model medgemma-27b-it \
   --role physician \
   --cache cache.duckdb \
-  --output summaries.tsv \
+  --output summaries.vcf \
   --output-cache tmp_cache.duckdb
 ```
 
