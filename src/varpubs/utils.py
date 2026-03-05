@@ -1,4 +1,5 @@
 from typing import List
+
 from cyvcf2 import VCF
 
 
