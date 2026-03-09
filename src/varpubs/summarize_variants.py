@@ -212,6 +212,6 @@ def summarize_variants(
                     )
                 ann.append(transcript_annotation)
 
-            record.INFO["ANN"] = ",".join(transcript_annotations)
+            record.INFO["ANN"] = ",".join(ann)
             vcf_out.write_record(record)
         vcf_out.close()
