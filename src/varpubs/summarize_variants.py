@@ -91,6 +91,8 @@ def summarize_variants(
                         BioconceptToPMID.bioconcept == bioconcept
                     )
                 ).all()
+                # Skip synonymous variants ("=" not in bioconcept) and variants without an hgvsp annotation while still creating a TranscriptRecord per transcript
+                # @VARIANT__ checks whether f"@VARIANT_{hgvsp}..." actually contains an hgvsp value
                 pmids = (
                     set(m.pmid for m in mappings)
                     if "=" not in bioconcept or "@VARIANT__" not in bioconcept
