@@ -57,7 +57,7 @@ class PubmedDB:
             # Consider adding parameter to manually set max_ret
             publications = list()
             # Skip synonymous variants and variants without HGVSp annotation
-            if "=" not in bioconcept or "@VARIANT__" not in bioconcept:
+            if "=" not in bioconcept or "VARIANT__" not in bioconcept:
                 publications = pg.search(
                     bioconcept,
                     sections=["title", "abstract"],
