@@ -2,6 +2,7 @@ import logging
 from cyvcf2 import VCF
 from typing import Tuple, List, Any
 from hgvs.parser import Parser
+from hgvs.exceptions import HGVSParseError
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,15 @@ def extract_bioconcept_from_record(
                     logger.warning(f"HGVSp entry is empty: {ann_entry}")
                     continue
                 hgvsp = fields[hgvsp_index]
-                hgvsp_single = (
-                    hgvs_parser.parse(hgvsp.replace("%3D", "="))
-                    .format(conf={"p_3_letter": False})
-                    .split(":")[1]
-                )
+                try:
+                    hgvsp_single = (
+                        hgvs_parser.parse(hgvsp.replace("%3D", "="))
+                        .format(conf={"p_3_letter": False})
+                        .split(":")[1]
+                    )
+                except HGVSParseError as e:
+                    logger.warning(f"Unable to parse hgvsp: {hgvsp}.\n{e}")
+                    hgvsp_single = hgvsp.replace("%3D", "=")
                 gene = fields[gene_index]
 
                 # Create bioconcept for querying pubtator
