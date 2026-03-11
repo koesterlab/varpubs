@@ -44,7 +44,6 @@ def extract_bioconcept_from_record(
     if ann:
         for ann_entry in ann.split(","):
             fields = ann_entry.split("|")
-            # TODO: Consider filtering only canonical transcripts
             if len(fields) > max(hgvsp_index, gene_index):
                 hgvsp = fields[hgvsp_index]
                 try:
