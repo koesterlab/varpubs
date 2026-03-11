@@ -50,7 +50,7 @@ def extract_bioconcept_from_record(
                     continue
                 hgvsp = fields[hgvsp_index]
                 hgvsp_single = (
-                    hgvs_parser.parse(hgvsp)
+                    hgvs_parser.parse(hgvsp.replace("%3D", "="))
                     .format(conf={"p_3_letter": False})
                     .split(":")[1]
                 )
