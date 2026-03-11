@@ -95,7 +95,7 @@ def summarize_variants(
                 # VARIANT__ checks whether f"@VARIANT_{hgvsp}..." actually contains an hgvsp value
                 pmids = (
                     set(m.pmid for m in mappings)
-                    if "=" not in bioconcept or "VARIANT__" not in bioconcept
+                    if "=" not in bioconcept and "VARIANT__" not in bioconcept
                     else set()
                 )
                 if not transcript_records.get(bioconcept):
