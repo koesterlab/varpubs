@@ -99,7 +99,8 @@ def summarize_variants(
                     else set()
                 )
                 if not transcript_records.get(bioconcept):
-                    logging.info(f"Summarizing abstracts for: {bioconcept}")
+                    if pmids:
+                        logging.info(f"Summarizing abstracts for: {bioconcept}")
 
                     for pmid in pmids:
                         article = session.exec(
