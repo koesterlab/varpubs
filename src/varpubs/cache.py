@@ -93,6 +93,13 @@ class Cache:
 
     def write_summaries(self, summaries: List[Summary]) -> None:
         with Session(self.engine) as session:
+            summaries = [
+                summary
+                for summary in summaries
+                if not self.lookup_summary(
+                    summary.term, summary.pmid, summary.model, summary.prompt_hash
+                )
+            ]
             session.add_all(summaries)
             session.commit()
 
@@ -112,7 +119,7 @@ class Cache:
             ).first()
             if j:
                 logger.info(
-                    f"Found judgement cache entry for {term} with judge term {judge}"
+                    f"Found judgement cache entry for {term} with judge term {judge} and PMID {pmid}: {j.score}"
                 )
                 return j.score
             else:
@@ -120,6 +127,13 @@ class Cache:
 
     def write_judges(self, judges: List[Judge]) -> None:
         with Session(self.engine) as session:
+            judges = [
+                judge
+                for judge in judges
+                if not self.lookup_judge(
+                    judge.term, judge.pmid, judge.model, judge.judge, judge.prompt_hash
+                )
+            ]
             session.add_all(judges)
             session.commit()
 
