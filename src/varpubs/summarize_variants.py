@@ -28,13 +28,13 @@ class TranscriptRecord:
         if self.judges:
             return str(mean(pmid_score[judge] for pmid_score in self.judges))
         else:
-            return "."
+            return ""
 
     def join_pmids(self) -> str:
         if self.pmids:
             return "&".join(str(pmid) for pmid in list(self.pmids))
         else:
-            return "."
+            return ""
 
 
 def summarize_variants(
@@ -91,7 +91,9 @@ def summarize_variants(
                         BioconceptToPMID.bioconcept == bioconcept
                     )
                 ).all()
-                pmids = set(m.pmid for m in mappings)
+                pmids = (
+                    set(m.pmid for m in mappings) if "=" not in bioconcept else set()
+                )
                 if not transcript_records.get(bioconcept):
                     logging.info(f"Summarizing abstracts for: {bioconcept}")
 
@@ -174,7 +176,7 @@ def summarize_variants(
                     final_summary = (
                         summarizer.summarize(pmids_summaries, f"{gene} {hgvs}")
                         if pmids_summaries
-                        else "."
+                        else ""
                     )
                     transcript_records[bioconcept] = TranscriptRecord(
                         pmids=pmids,
@@ -205,10 +207,10 @@ def summarize_variants(
             for transcript_info, ann_str in zip(
                 transcript_infos, transcript_annotations
             ):
-                transcript_annotation = f"{ann_str} | {transcript_info.summary} | {transcript_info.join_pmids()}"
+                transcript_annotation = f"{ann_str}|{transcript_info.summary}|{transcript_info.join_pmids()}"
                 for judge in judges:
                     transcript_annotation = (
-                        f"{transcript_annotation} | {transcript_info.mean_score(judge)}"
+                        f"{transcript_annotation}|{transcript_info.mean_score(judge)}"
                     )
                 ann.append(transcript_annotation)
 

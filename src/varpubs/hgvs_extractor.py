@@ -49,9 +49,6 @@ def extract_bioconcept_from_record(
                     logger.warning(f"HGVSp entry is empty: {ann_entry}")
                     continue
                 hgvsp = fields[hgvsp_index]
-                # skip synonymous variants
-                if "%3D" in hgvsp:
-                    continue
                 hgvsp_single = (
                     hgvs_parser.parse(hgvsp)
                     .format(conf={"p_3_letter": False})
