@@ -53,7 +53,7 @@ def extract_bioconcept_from_record(
                         .split(":")[1]
                     )
                 except HGVSParseError as e:
-                    logger.warning(f"Unable to parse hgvsp: {hgvsp}.\n{e}")
+                    logger.warning(f"Unable to parse hgvsp: '{hgvsp}'\n{e}")
                     hgvsp_single = hgvsp.replace("%3D", "=")
                 gene = fields[gene_index]
 
