@@ -92,7 +92,9 @@ def summarize_variants(
                     )
                 ).all()
                 pmids = (
-                    set(m.pmid for m in mappings) if "=" not in bioconcept else set()
+                    set(m.pmid for m in mappings)
+                    if "=" not in bioconcept or "@VARIANT__" not in bioconcept
+                    else set()
                 )
                 if not transcript_records.get(bioconcept):
                     logging.info(f"Summarizing abstracts for: {bioconcept}")

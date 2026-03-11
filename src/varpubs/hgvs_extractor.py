@@ -46,9 +46,6 @@ def extract_bioconcept_from_record(
             fields = ann_entry.split("|")
             # TODO: Consider filtering only canonical transcripts
             if len(fields) > max(hgvsp_index, gene_index):
-                if not fields[hgvsp_index]:
-                    logger.warning(f"HGVSp entry is empty: {ann_entry}")
-                    continue
                 hgvsp = fields[hgvsp_index]
                 try:
                     hgvsp_single = (
