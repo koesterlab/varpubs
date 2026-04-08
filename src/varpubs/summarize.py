@@ -51,6 +51,7 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary paragraph:"
         )
+        message = ""
         for retry in range(retries):
             response = self.client.chat.completions.create(
                 model=self.settings.model,
