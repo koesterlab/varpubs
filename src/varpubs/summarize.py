@@ -31,7 +31,9 @@ class PubmedSummarizer:
     def instruction(self) -> str:
         return f"You are an {self.settings.role}."
 
-    def summarize(self, texts: list[tuple[PubmedArticle, str]], term: str) -> str:
+    def summarize(
+        self, texts: list[tuple[PubmedArticle, str]], term: str, retries=3
+    ) -> str:
         summaries = "\n".join(
             f"{article.pmid}: {summary}" for article, summary in texts
         )
@@ -49,16 +51,27 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary paragraph:"
         )
-        response = self.client.chat.completions.create(
-            model=self.settings.model,
-            messages=[
-                {"role": "system", "content": self.instruction()},
-                {"role": "user", "content": input_text},
-            ],
-            max_tokens=self.settings.max_new_tokens + 250,
-            temperature=self.settings.temperature,
-        )
-        return str(response.choices[0].message.content)
+        for retry in range(retries):
+            response = self.client.chat.completions.create(
+                model=self.settings.model,
+                messages=[
+                    {"role": "system", "content": self.instruction()},
+                    {"role": "user", "content": input_text},
+                ],
+                max_tokens=self.settings.max_new_tokens + 500 * retry,
+                temperature=self.settings.temperature,
+            )
+            choice = response.choices[0]
+            message = str(choice.message.content)
+            if choice.finish_reason == "length":
+                logging.info(
+                    f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
+                )
+                continue
+            else:
+                return message
+        logging.warn("Message might be truncate. Max token limit reached.")
+        return message
 
     def summary_prompt_template(self) -> Template:
         """Return a template for generating a summary prompt."""
