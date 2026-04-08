@@ -56,19 +56,21 @@ class PubmedDB:
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret
             publications = list()
-            publications = pg.search(
-                bioconcept,
-                sections=["title", "abstract"],
-                max_ret=self.max_publications,
-                retries=5,
-            )
+            # Skip synonymous variants and variants without HGVSp annotation
+            if "=" not in bioconcept and "@VARIANT__" not in bioconcept:
+                publications = pg.search(
+                    bioconcept,
+                    sections=["title", "abstract"],
+                    max_ret=self.max_publications,
+                    retries=5,
+                )
             pmids = [publication.pmid for publication in publications]
             relations[bioconcept] = pmids
 
             logger.debug(f"Found {len(pmids)} PMIDs for {bioconcept}")
 
         with Session(self.engine) as session:
-            pmids = {pmid for _, pmids in relations.items() for pmid in pmids}
+            pmids = {pmid for pmids in relations.values() for pmid in pmids}
             to_be_fetched = [
                 pmid
                 for pmid in pmids
