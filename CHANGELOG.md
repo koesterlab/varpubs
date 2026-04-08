@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.0](https://github.com/koesterlab/varpubs/compare/v0.5.0...v1.0.0) (2026-04-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change output format from CSV to VCF ([#30](https://github.com/koesterlab/varpubs/issues/30))
+
+### Features
+
+* Add section based publication retrieval and expose ([#28](https://github.com/koesterlab/varpubs/issues/28)) ([349c69a](https://github.com/koesterlab/varpubs/commit/349c69a9f741c2599ece1b358e9f8283bd751a38))
+* Change output format from CSV to VCF ([#30](https://github.com/koesterlab/varpubs/issues/30)) ([8421506](https://github.com/koesterlab/varpubs/commit/84215061aae04b59015657817625a5e563c96fe7))
+
 ## [0.5.0](https://github.com/koesterlab/varpubs/compare/v0.4.1...v0.5.0) (2026-01-20)
 
 
