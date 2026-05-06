@@ -32,7 +32,11 @@ class PubmedSummarizer:
         return f"You are an {self.settings.role}."
 
     def summarize(
-        self, texts: list[tuple[PubmedArticle, str]], term: str, judge: str, retries=3,
+        self,
+        texts: list[tuple[PubmedArticle, str]],
+        term: str,
+        judge: str,
+        retries=3,
     ) -> str:
         summaries = "\n".join(
             f"{article.pmid}: {summary}" for article, summary in texts

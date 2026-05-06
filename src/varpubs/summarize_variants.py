@@ -181,7 +181,9 @@ def summarize_variants(
                             for data in summaries.values()
                             if data["scores"].get(judge) > 1
                         ]
-                        judge_term_summary = summarizer.summarize(relevant_summaries, f"{gene} {hgvs}", judge)
+                        judge_term_summary = summarizer.summarize(
+                            relevant_summaries, f"{gene} {hgvs}", judge
+                        )
                         final_summary += f"{judge}:\n\n{judge_term_summary}\n\n"
 
                     transcript_records[bioconcept] = TranscriptRecord(
