@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/koesterlab/varpubs/compare/v1.0.0...v1.1.0) (2026-05-06)
+
+
+### Features
+
+* Output per-judge bullet point summaries ([#31](https://github.com/koesterlab/varpubs/issues/31)) ([ab347b6](https://github.com/koesterlab/varpubs/commit/ab347b691e10dbb0074ea67c64df91b3a5325c0c))
+
 ## [1.0.0](https://github.com/koesterlab/varpubs/compare/v0.5.0...v1.0.0) (2026-04-08)
 
 
