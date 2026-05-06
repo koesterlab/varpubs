@@ -3,7 +3,7 @@ from typing import Optional
 from openai import OpenAI
 from string import Template
 from varpubs.pubmed_db import PubmedArticle
-from varpubs.cache import Cache
+from varpubs.cache import Cache, Judge
 import re
 import logging
 import hashlib
@@ -32,24 +32,23 @@ class PubmedSummarizer:
         return f"You are an {self.settings.role}."
 
     def summarize(
-        self, texts: list[tuple[PubmedArticle, str]], term: str, retries=3
+        self, texts: list[tuple[PubmedArticle, str]], term: str, judge: str, retries=3,
     ) -> str:
         summaries = "\n".join(
             f"{article.pmid}: {summary}" for article, summary in texts
         )
         input_text = (
             f"Take the following summaries of PubMed articles related to {term}"
-            "Write only ONE single coherent paragraph.\n"
+            f"Write a short and concise bullet point based summary under the aspect of: {judge}.\n"
             "Requirements:\n"
             "- REMOVE all irrelevant information.\n"
             "- DO NOT add introductory phrases (e.g., 'the provided text discusses', 'here is a summary').\n"
-            "- DO NOT list results. NO bullet points. NO multiple paragraphs.\n"
             "- Synthesise the information: merge overlapping findings, highlight agreements or contradictions.\n"
             "- Be concise but informative. Focus on biologically and clinically meaningful insights only.\n"
-            "- When referring to information from an article, cite the PMID in parentheses (PMID:XXXXX).\n"
-            "- Only output the paragraph. No meta-commentary.\n\n"
+            "- ALWAYS cite the PMID in parentheses (PMID:XXXXX) when referring to information from an article,.\n"
+            "- Only output the bullet points each starting with a - character. No meta-commentary.\n\n"
             f"Article summaries:\n{summaries}\n\n"
-            "Now write the summary paragraph:"
+            "Now write the summary bullet points:"
         )
         message = ""
         for retry in range(retries):
