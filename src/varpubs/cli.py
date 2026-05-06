@@ -52,10 +52,10 @@ class SummarizeArgs:
     output: Path
     cache: Optional[Path]
     llm_url: str
+    judges: List[str]
     species: str = "human"
     model: str = "medgemma-27b-it"
     role: str = "physician"
-    judges: Optional[List[str]] = None
     api_key: Optional[str] = ""
     output_cache: Optional[Path] = None
 

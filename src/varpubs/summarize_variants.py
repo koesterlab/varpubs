@@ -1,7 +1,7 @@
 import logging
 from statistics import mean
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple, Set
+from typing import List, Optional, Dict, Set
 from dataclasses import dataclass
 
 from sqlmodel import Session, select
@@ -42,16 +42,16 @@ def summarize_variants(
     vcf_path: Path,
     summarizer: PubmedSummarizer,
     species: str,
+    judges: List[str],
     out_path: Optional[Path] = None,
-    judges: Optional[List[str]] = None,
     output_cache: Optional[Path] = None,
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
     summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
     """
-    if judges is None:
-        judges = []
+    if not judges:
+        raise ValueError("At least one judge must be specified for summarization.")
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
     cache = summarizer.settings.cache
@@ -169,20 +169,23 @@ def summarize_variants(
                             "scores": scores,
                             "term": bioconcept,
                         }
-                    pmids_summaries: List[Tuple[PubmedArticle, str]] = [
-                        (data["article"], data["summary"])
-                        for data in summaries.values()
-                    ]
                     judge_scores: List[Dict[str, int]] = [
                         data["scores"] for data in summaries.values()
                     ]
 
                     hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                    final_summary = (
-                        summarizer.summarize(pmids_summaries, f"{gene} {hgvs}")
-                        if pmids_summaries
-                        else ""
-                    )
+                    final_summary = ""
+                    for judge in judges:
+                        relevant_summaries = [
+                            (data["article"], data["summary"])
+                            for data in summaries.values()
+                            if data["scores"].get(judge) > 1
+                        ]
+                        judge_term_summary = summarizer.summarize(
+                            relevant_summaries, f"{gene} {hgvs}", judge
+                        )
+                        final_summary += f"{judge}:\n\n{judge_term_summary}\n\n"
+
                     transcript_records[bioconcept] = TranscriptRecord(
                         pmids=pmids,
                         summary=final_summary.replace(",", "%2C"),
