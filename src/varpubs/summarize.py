@@ -3,7 +3,7 @@ from typing import Optional
 from openai import OpenAI
 from string import Template
 from varpubs.pubmed_db import PubmedArticle
-from varpubs.cache import Cache, Judge
+from varpubs.cache import Cache
 import re
 import logging
 import hashlib

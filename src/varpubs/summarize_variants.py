@@ -1,7 +1,7 @@
 import logging
 from statistics import mean
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple, Set
+from typing import List, Optional, Dict, Set
 from dataclasses import dataclass
 
 from sqlmodel import Session, select
