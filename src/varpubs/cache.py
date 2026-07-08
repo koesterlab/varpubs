@@ -14,9 +14,9 @@ class Summary(SQLModel, table=True):
 
     term: str = Field(nullable=False, primary_key=True)
     pmid: int = Field(Integer, nullable=False, primary_key=True)
-    model: str = Field(nullable=False)
+    model: str = Field(nullable=False, primary_key=True)
     summary: str = Field(nullable=False)
-    prompt_hash: str = Field(nullable=False)
+    prompt_hash: str = Field(nullable=False, primary_key=True)
 
 
 class Judge(SQLModel, table=True):
@@ -24,10 +24,10 @@ class Judge(SQLModel, table=True):
 
     term: str = Field(nullable=False, primary_key=True)
     pmid: int = Field(Integer, nullable=False, primary_key=True)
-    model: str = Field(nullable=False)
-    judge: str = Field(nullable=False)
+    model: str = Field(nullable=False, primary_key=True)
+    judge: str = Field(nullable=False, primary_key=True)
     score: int = Field(nullable=False)
-    prompt_hash: str = Field(nullable=False)
+    prompt_hash: str = Field(nullable=False, primary_key=True)
 
 
 @dataclass
