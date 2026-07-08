@@ -141,24 +141,32 @@ class PubmedSummarizer:
             input_text = template.substitute(
                 term=term, title=article.title, abstract=article.abstract
             )
-
-            response = self.client.chat.completions.create(
-                model=self.settings.model,
-                messages=[
-                    {"role": "system", "content": self.instruction()},
-                    {"role": "user", "content": input_text},
-                ],
-                temperature=self.settings.temperature,
-                max_tokens=self.settings.max_new_tokens,
-            )
-            raw = response.choices[0].message.content or ""
-
-            match = re.search(r"\b([1-4])\b", raw)
-            if match:
-                score = int(match.group())
-                return max(1, min(4, score))
-            else:
-                logging.warning(f"Could not parse judgment from model response: {raw}")
+            for retry in range(retries):
+                response = self.client.chat.completions.create(
+                    model=self.settings.model,
+                    messages=[
+                        {"role": "system", "content": self.instruction()},
+                        {"role": "user", "content": input_text},
+                    ],
+                    max_tokens=self.settings.max_new_tokens + 500 * retry,
+                    temperature=self.settings.temperature,
+                )
+                choice = response.choices[0]
+                message = str(choice.message.content)
+                if choice.finish_reason == "length":
+                    logging.info(
+                        f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
+                    )
+                    continue
+                else:
+                    match = re.search(r"\b([1-4])\b", message)
+                    if match:
+                        score = int(match.group())
+                        return max(1, min(4, score))
+                    else:
+                        logging.warning(
+                            f"Could not parse judgment from model response: {message}"
+                        )
 
         raise ValueError(
             f"Could not parse judgment from model response after {retries} retries."
