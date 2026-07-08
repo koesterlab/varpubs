@@ -150,44 +150,35 @@ class PubmedSummarizer:
         template_text = self.judge_prompt_template().template
         return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
 
-    def judge(self, article: PubmedArticle, term: str) -> int:
-        retries = self.settings.retries
-        for _ in range(retries):
-            template = self.judge_prompt_template()
-            input_text = template.substitute(
-                term=term, title=article.title, abstract=article.abstract
-            )
-            for retry in range(retries):
-                response = self.client.chat.completions.create(
-                    model=self.settings.model,
-                    messages=[
-                        {"role": "system", "content": self.instruction()},
-                        {"role": "user", "content": input_text},
-                    ],
-                    max_tokens=self.max_tokens(retry),
-                    temperature=self.settings.temperature,
-                    extra_body=self.extra_body,
-                )
-                choice = response.choices[0]
-                message = choice.message.content or ""
-                if choice.finish_reason == "length":
-                    logging.info(
-                        f"LLM response truncated with max tokens {self.max_tokens(retry)}. Retrying with {self.max_tokens(retry + 1)}"
-                    )
-                    continue
-                else:
-                    match = re.search(r"\b([1-4])\b", message)
-                    if match:
-                        score = int(match.group())
-                        return max(1, min(4, score))
-                    else:
-                        logging.warning(
-                            f"Could not parse judgment from model response: {message}"
-                        )
-
-        raise ValueError(
-            f"Could not parse judgment from model response after {retries} retries."
+    def judge(self, article: PubmedArticle, term: str) -> Optional[int]:
+        template = self.judge_prompt_template()
+        input_text = template.substitute(
+            term=term, title=article.title, abstract=article.abstract
         )
+        for retry in range(self.settings.retries):
+            response = self.client.chat.completions.create(
+                model=self.settings.model,
+                messages=[
+                    {"role": "system", "content": self.instruction()},
+                    {"role": "user", "content": input_text},
+                ],
+                max_tokens=self.max_tokens(retry),
+                temperature=self.settings.temperature,
+                extra_body=self.extra_body,
+            )
+            choice = response.choices[0]
+            if choice.finish_reason == "length":
+                logging.info(
+                    f"LLM response truncated with max tokens {self.max_tokens(retry)}. Retrying with {self.max_tokens(retry + 1)}"
+                )
+                continue
+            message = choice.message.content or ""
+            scores = re.findall(r"\b[1-4]\b", message)
+            if scores:
+                return int(scores[-1])
+            logging.warning(f"Could not parse judgment from model response: {message}")
+        logging.warning(f"Could not judge article {article.pmid} against '{term}'.")
+        return None
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [

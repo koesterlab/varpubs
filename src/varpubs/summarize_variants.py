@@ -152,17 +152,18 @@ def summarize_variants(
                             )
                             if not score:
                                 score = summarizer.judge(article, judge)
-                                judgements.append(
-                                    Judge(
-                                        term=bioconcept,
-                                        pmid=pmid,
-                                        model=summarizer.settings.model,
-                                        judge=judge,
-                                        score=score,
-                                        prompt_hash=summarizer.judge_prompt_hash(),
-                                    ).model_dump()
-                                )
-                            scores[judge] = score
+                                if score:
+                                    judgements.append(
+                                        Judge(
+                                            term=bioconcept,
+                                            pmid=pmid,
+                                            model=summarizer.settings.model,
+                                            judge=judge,
+                                            score=score,
+                                            prompt_hash=summarizer.judge_prompt_hash(),
+                                        ).model_dump()
+                                    )
+                            scores[judge] = score or 1
                         summaries[pmid] = {
                             "article": article,
                             "summary": summary_text,
