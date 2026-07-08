@@ -18,6 +18,8 @@ class Settings:
     max_new_tokens: int = 500
     temperature: float = 0.1
     cache: Optional[Cache] = None
+    retries: int = 3
+    enable_thinking: bool = False
 
 
 @dataclass
@@ -28,6 +30,15 @@ class PubmedSummarizer:
     def client(self) -> OpenAI:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
+    @property
+    def extra_body(self) -> dict:
+        return {
+            "chat_template_kwargs": {"enable_thinking": self.settings.enable_thinking}
+        }
+
+    def max_tokens(self, retry: int = 0) -> int:
+        return self.settings.max_new_tokens * 2**retry
+
     def instruction(self) -> str:
         return f"You are an {self.settings.role}."
 
@@ -36,7 +47,6 @@ class PubmedSummarizer:
         texts: list[tuple[PubmedArticle, str]],
         term: str,
         judge: str,
-        retries=3,
     ) -> str:
         summaries = "\n".join(
             f"{article.pmid}: {summary}" for article, summary in texts
@@ -54,26 +64,24 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary bullet points:"
         )
-        message = ""
-        for retry in range(retries):
+        for retry in range(self.settings.retries):
             response = self.client.chat.completions.create(
                 model=self.settings.model,
                 messages=[
                     {"role": "system", "content": self.instruction()},
                     {"role": "user", "content": input_text},
                 ],
-                max_tokens=self.settings.max_new_tokens + 500 * retry,
+                max_tokens=self.max_tokens(retry),
                 temperature=self.settings.temperature,
+                extra_body=self.extra_body,
             )
             choice = response.choices[0]
-            message = choice.message.content or ""
             if choice.finish_reason == "length":
                 logging.info(
-                    f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
+                    f"LLM response truncated with max tokens {self.max_tokens(retry)}. Retrying with {self.max_tokens(retry + 1)}"
                 )
                 continue
-            else:
-                return message
+            return choice.message.content or ""
         logging.warning("Max token limit reached. Discarding truncated summary.")
         return ""
 
@@ -111,7 +119,8 @@ class PubmedSummarizer:
                 {"role": "user", "content": input_text},
             ],
             temperature=self.settings.temperature,
-            max_tokens=self.settings.max_new_tokens,
+            max_tokens=self.max_tokens(),
+            extra_body=self.extra_body,
         )
         choice = response.choices[0]
         if choice.finish_reason == "length":
@@ -141,7 +150,8 @@ class PubmedSummarizer:
         template_text = self.judge_prompt_template().template
         return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
 
-    def judge(self, article: PubmedArticle, term: str, retries: int = 3) -> int:
+    def judge(self, article: PubmedArticle, term: str) -> int:
+        retries = self.settings.retries
         for _ in range(retries):
             template = self.judge_prompt_template()
             input_text = template.substitute(
@@ -154,14 +164,15 @@ class PubmedSummarizer:
                         {"role": "system", "content": self.instruction()},
                         {"role": "user", "content": input_text},
                     ],
-                    max_tokens=self.settings.max_new_tokens + 500 * retry,
+                    max_tokens=self.max_tokens(retry),
                     temperature=self.settings.temperature,
+                    extra_body=self.extra_body,
                 )
                 choice = response.choices[0]
                 message = choice.message.content or ""
                 if choice.finish_reason == "length":
                     logging.info(
-                        f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
+                        f"LLM response truncated with max tokens {self.max_tokens(retry)}. Retrying with {self.max_tokens(retry + 1)}"
                     )
                     continue
                 else:
@@ -270,6 +281,7 @@ class PubmedSummarizer:
             ],
             temperature=1,
             max_tokens=5,
+            extra_body=self.extra_body,
         )
         content = response.choices[0].message.content or ""
         answer = content.strip().lower()
