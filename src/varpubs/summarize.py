@@ -66,7 +66,7 @@ class PubmedSummarizer:
                 temperature=self.settings.temperature,
             )
             choice = response.choices[0]
-            message = str(choice.message.content)
+            message = choice.message.content or ""
             if choice.finish_reason == "length":
                 logging.info(
                     f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
@@ -74,8 +74,8 @@ class PubmedSummarizer:
                 continue
             else:
                 return message
-        logging.warn("Message might be truncate. Max token limit reached.")
-        return message
+        logging.warning("Max token limit reached. Discarding truncated summary.")
+        return ""
 
     def summary_prompt_template(self) -> Template:
         """Return a template for generating a summary prompt."""
@@ -113,7 +113,13 @@ class PubmedSummarizer:
             temperature=self.settings.temperature,
             max_tokens=self.settings.max_new_tokens,
         )
-        return str(response.choices[0].message.content)
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            logging.warning(
+                f"Truncated summary for article {article.pmid}. Discarding."
+            )
+            return ""
+        return choice.message.content or ""
 
     def judge_prompt_template(self) -> Template:
         return Template(
@@ -152,7 +158,7 @@ class PubmedSummarizer:
                     temperature=self.settings.temperature,
                 )
                 choice = response.choices[0]
-                message = str(choice.message.content)
+                message = choice.message.content or ""
                 if choice.finish_reason == "length":
                     logging.info(
                         f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"

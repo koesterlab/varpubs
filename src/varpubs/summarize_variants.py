@@ -203,6 +203,7 @@ def summarize_variants(
                                 prompt_hash=summarizer.summary_prompt_hash(),
                             )
                             for pmid, data in summaries.items()
+                            if data["summary"]
                         ]
                         ocache.write_summaries(s)
                         ocache.write_judges([Judge(**j) for j in judgements])
