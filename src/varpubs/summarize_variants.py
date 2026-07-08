@@ -181,6 +181,8 @@ def summarize_variants(
                             for data in summaries.values()
                             if data["scores"].get(judge) > 1
                         ]
+                        if not relevant_summaries:
+                            continue
                         judge_term_summary = summarizer.summarize(
                             relevant_summaries, f"{gene} {hgvs}", judge
                         )
