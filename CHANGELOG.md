@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1](https://github.com/koesterlab/varpubs/compare/v1.1.0...v1.1.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* Accept both dash and underscore variants for all CLI arguments ([#35](https://github.com/koesterlab/varpubs/issues/35)) ([271fb43](https://github.com/koesterlab/varpubs/commit/271fb431977e8d481cdde3be47a691924954842a))
+* Don't make LLM calls if no relevant articles are present ([#33](https://github.com/koesterlab/varpubs/issues/33)) ([e54e8f4](https://github.com/koesterlab/varpubs/commit/e54e8f45e575c5d7033286f59acf23fc516ef3f1))
+* fix truncated judges ([#36](https://github.com/koesterlab/varpubs/issues/36)) ([be6032e](https://github.com/koesterlab/varpubs/commit/be6032e49011ac8494300271b01bd58e654b82b0))
+
 ## [1.1.0](https://github.com/koesterlab/varpubs/compare/v1.0.0...v1.1.0) (2026-05-06)
 
 
