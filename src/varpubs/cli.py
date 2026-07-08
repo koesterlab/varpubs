@@ -83,7 +83,9 @@ def main():
     - 'deploy-db': Parses VCFs and populates the DuckDB database with PubMed entries.
     - 'summarize-variants': Summarizes articles related to variants using an LLM model.
     """
-    parser = ArgumentParser(add_option_string_dash_variants=DashVariant.DASH)
+    parser = ArgumentParser(
+        add_option_string_dash_variants=DashVariant.UNDERSCORE_AND_DASH
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     parser.add_argument(
@@ -94,17 +96,24 @@ def main():
         help="Increase verbosity level (use -v, -vv, -vvv)",
     )
 
-    deploy_parser = subparsers.add_parser("deploy-db", help="Deploy the database")
+    deploy_parser = subparsers.add_parser(
+        "deploy-db",
+        help="Deploy the database",
+        add_option_string_dash_variants=DashVariant.UNDERSCORE_AND_DASH,
+    )
     deploy_parser.add_arguments(DeployDBArgs, dest="args")
 
     summarize_parser = subparsers.add_parser(
-        "summarize-variants", help="Summarize variants using LLM"
+        "summarize-variants",
+        help="Summarize variants using LLM",
+        add_option_string_dash_variants=DashVariant.UNDERSCORE_AND_DASH,
     )
     summarize_parser.add_arguments(SummarizeArgs, dest="args")
 
     update_cache_parser = subparsers.add_parser(
         "update-cache",
         help="Update cache using temporary caches from summarize-variants subcommand",
+        add_option_string_dash_variants=DashVariant.UNDERSCORE_AND_DASH,
     )
     update_cache_parser.add_arguments(UpdateCacheArgs, dest="args")
 
