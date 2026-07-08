@@ -45,6 +45,9 @@ class SummarizeArgs:
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
     - output_cache: Optional path to save the cache file for storing new summary results.
+    - max_new_tokens: Token budget for the first attempt of each LLM call (default: 500).
+    - retries: Attempts per LLM call, doubling the token budget each time (default: 3).
+    - enable_thinking: Enable reasoning for models that support it (default: False).
     """
 
     db_path: Path
@@ -58,6 +61,9 @@ class SummarizeArgs:
     role: str = "physician"
     api_key: Optional[str] = ""
     output_cache: Optional[Path] = None
+    max_new_tokens: int = 500
+    retries: int = 3
+    enable_thinking: bool = False
 
 
 @dataclass
@@ -147,6 +153,9 @@ def main():
                 base_url=args.args.llm_url,
                 role=args.args.role,
                 cache=cache,
+                max_new_tokens=args.args.max_new_tokens,
+                retries=args.args.retries,
+                enable_thinking=args.args.enable_thinking,
             )
         )
 

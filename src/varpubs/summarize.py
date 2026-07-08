@@ -8,6 +8,8 @@ import re
 import logging
 import hashlib
 
+THINKING = re.compile(r"<think>.*?</think>", re.DOTALL)
+
 
 @dataclass
 class Settings:
@@ -18,6 +20,8 @@ class Settings:
     max_new_tokens: int = 500
     temperature: float = 0.1
     cache: Optional[Cache] = None
+    retries: int = 3
+    enable_thinking: bool = False
 
 
 @dataclass
@@ -28,15 +32,53 @@ class PubmedSummarizer:
     def client(self) -> OpenAI:
         return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
 
+    @property
+    def extra_body(self) -> dict:
+        return {
+            "chat_template_kwargs": {"enable_thinking": self.settings.enable_thinking}
+        }
+
+    def max_tokens(self, retry: int = 0) -> int:
+        return self.settings.max_new_tokens * 2**retry
+
     def instruction(self) -> str:
         return f"You are an {self.settings.role}."
+
+    def complete(
+        self,
+        input_text: str,
+        instruction: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ) -> Optional[str]:
+        for retry in range(self.settings.retries):
+            budget = max_tokens or self.max_tokens(retry)
+            response = self.client.chat.completions.create(
+                model=self.settings.model,
+                messages=[
+                    {"role": "system", "content": instruction or self.instruction()},
+                    {"role": "user", "content": input_text},
+                ],
+                max_tokens=budget,
+                temperature=self.settings.temperature
+                if temperature is None
+                else temperature,
+                extra_body=self.extra_body,
+            )
+            choice = response.choices[0]
+            if choice.finish_reason == "length":
+                logging.info(
+                    f"LLM response truncated with max tokens {budget}. Retrying with {max_tokens or self.max_tokens(retry + 1)}"
+                )
+                continue
+            return THINKING.sub("", choice.message.content or "").strip()
+        return None
 
     def summarize(
         self,
         texts: list[tuple[PubmedArticle, str]],
         term: str,
         judge: str,
-        retries=3,
     ) -> str:
         summaries = "\n".join(
             f"{article.pmid}: {summary}" for article, summary in texts
@@ -54,27 +96,10 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary bullet points:"
         )
-        message = ""
-        for retry in range(retries):
-            response = self.client.chat.completions.create(
-                model=self.settings.model,
-                messages=[
-                    {"role": "system", "content": self.instruction()},
-                    {"role": "user", "content": input_text},
-                ],
-                max_tokens=self.settings.max_new_tokens + 500 * retry,
-                temperature=self.settings.temperature,
-            )
-            choice = response.choices[0]
-            message = str(choice.message.content)
-            if choice.finish_reason == "length":
-                logging.info(
-                    f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
-                )
-                continue
-            else:
-                return message
-        logging.warn("Message might be truncate. Max token limit reached.")
+        message = self.complete(input_text)
+        if message is None:
+            logging.warning("Max token limit reached. Discarding truncated summary.")
+            return ""
         return message
 
     def summary_prompt_template(self) -> Template:
@@ -104,16 +129,13 @@ class PubmedSummarizer:
             abstract=article.abstract or "",
         )
 
-        response = self.client.chat.completions.create(
-            model=self.settings.model,
-            messages=[
-                {"role": "system", "content": self.instruction()},
-                {"role": "user", "content": input_text},
-            ],
-            temperature=self.settings.temperature,
-            max_tokens=self.settings.max_new_tokens,
-        )
-        return str(response.choices[0].message.content)
+        message = self.complete(input_text)
+        if message is None:
+            logging.warning(
+                f"Truncated summary for article {article.pmid}. Discarding."
+            )
+            return ""
+        return message
 
     def judge_prompt_template(self) -> Template:
         return Template(
@@ -135,42 +157,20 @@ class PubmedSummarizer:
         template_text = self.judge_prompt_template().template
         return hashlib.sha256(template_text.encode("utf-8")).hexdigest()
 
-    def judge(self, article: PubmedArticle, term: str, retries: int = 3) -> int:
-        for _ in range(retries):
-            template = self.judge_prompt_template()
-            input_text = template.substitute(
-                term=term, title=article.title, abstract=article.abstract
-            )
-            for retry in range(retries):
-                response = self.client.chat.completions.create(
-                    model=self.settings.model,
-                    messages=[
-                        {"role": "system", "content": self.instruction()},
-                        {"role": "user", "content": input_text},
-                    ],
-                    max_tokens=self.settings.max_new_tokens + 500 * retry,
-                    temperature=self.settings.temperature,
-                )
-                choice = response.choices[0]
-                message = str(choice.message.content)
-                if choice.finish_reason == "length":
-                    logging.info(
-                        f"LLM response truncated with max tokens {self.settings.max_new_tokens + 500 * retry}. Retrying with {self.settings.max_new_tokens + 500 * (retry + 1)}"
-                    )
-                    continue
-                else:
-                    match = re.search(r"\b([1-4])\b", message)
-                    if match:
-                        score = int(match.group())
-                        return max(1, min(4, score))
-                    else:
-                        logging.warning(
-                            f"Could not parse judgment from model response: {message}"
-                        )
-
-        raise ValueError(
-            f"Could not parse judgment from model response after {retries} retries."
+    def judge(self, article: PubmedArticle, term: str) -> Optional[int]:
+        template = self.judge_prompt_template()
+        input_text = template.substitute(
+            term=term, title=article.title, abstract=article.abstract
         )
+        message = self.complete(input_text)
+        if message is None:
+            logging.warning(f"Could not judge article {article.pmid} against '{term}'.")
+            return None
+        scores = re.findall(r"\b[1-4]\b", message)
+        if not scores:
+            logging.warning(f"Could not parse judgment from model response: {message}")
+            return None
+        return int(scores[-1])
 
     def validate_summary(self, abstract: str, summary: str) -> bool:
         few_shots = [
@@ -256,15 +256,7 @@ class PubmedSummarizer:
             "Is the summary factually accurate based on the abstract?"
         )
 
-        response = self.client.chat.completions.create(
-            model=self.settings.model,
-            messages=[
-                {"role": "system", "content": instruction_text},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=1,
-            max_tokens=5,
+        answer = self.complete(
+            user_prompt, instruction=instruction_text, max_tokens=5, temperature=1
         )
-        content = response.choices[0].message.content or ""
-        answer = content.strip().lower()
-        return answer == "true"
+        return (answer or "").strip().lower() == "true"

@@ -41,10 +41,13 @@ varpubs summarize-variants \
   --api-key $HF_TOKEN \
   --model medgemma-27b-it \
   --role physician \
+  --judges "therapy relevance" \
   --cache cache.duckdb \
   --output summaries.vcf \
   --output-cache tmp_cache.duckdb
 ```
+
+Each LLM call starts with a budget of `--max-new-tokens` (default 500) and doubles it on every `--retries` attempt (default 3) if the response was cut off. Responses still truncated after the last attempt are discarded. Model reasoning is disabled by default and can be enabled via `--enable-thinking true`.
 
 ### 3. Merge or update caches
 ```bash

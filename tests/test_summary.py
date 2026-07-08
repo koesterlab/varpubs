@@ -48,6 +48,7 @@ skip_if_no_api_key = pytest.mark.skipif(
 def test_positive_judgment():
     summarizer = PubmedSummarizer(settings())
     score = summarizer.judge(ARTICLE, "therapy related")
+    assert score is not None
     assert score > 1
 
 
@@ -55,6 +56,7 @@ def test_positive_judgment():
 def test_negative_judgment():
     summarizer = PubmedSummarizer(settings())
     score = summarizer.judge(THERAPY_UNRELATED_ARTICLE, "therapy unrelated")
+    assert score is not None
     assert score < 2
 
 
