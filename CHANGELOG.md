@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/koesterlab/varpubs/compare/v1.2.0...v1.2.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* Include model, judge and prompt hash in cache primary keys ([#39](https://github.com/koesterlab/varpubs/issues/39)) ([943c5d5](https://github.com/koesterlab/varpubs/commit/943c5d5367fd313588ae257dc7a0175029e54b59))
+
 ## [1.2.0](https://github.com/koesterlab/varpubs/compare/v1.1.1...v1.2.0) (2026-07-08)
 
 
