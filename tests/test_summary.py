@@ -46,6 +46,14 @@ skip_if_no_api_key = pytest.mark.skipif(
 )
 
 
+def test_client_uses_request_retries_and_timeout():
+    summarizer = PubmedSummarizer(
+        Settings(api_key="", role="oncologist", request_retries=5, request_timeout=42.0)
+    )
+    assert summarizer.client.max_retries == 5
+    assert summarizer.client.timeout == 42.0
+
+
 @skip_if_no_api_key
 def test_positive_judgment():
     summarizer = PubmedSummarizer(settings())
