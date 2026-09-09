@@ -1,10 +1,12 @@
+import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from cyvcf2 import VCF, Writer
+from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from varpubs.cache import Cache, Judge, Summary
@@ -12,6 +14,8 @@ from varpubs.hgvs_extractor import (
     bioconcept_to_hgvsp_gene,
     extract_bioconcept_from_record,
     get_annotation_field_index,
+    table_delimiter,
+    table_row_to_bioconcept,
 )
 from varpubs.pubmed_db import BioconceptToPMID, PubmedArticle, PubmedDB
 from varpubs.summarize import PubmedSummarizer
@@ -169,6 +173,24 @@ def process_bioconcept(
     return transcript_record
 
 
+def _prepare(
+    db_path: Path,
+    species: str,
+    judges: List[str],
+    output_cache: Optional[Path],
+) -> Tuple[Engine, Optional[Cache]]:
+    """Open the article database engine and (optionally) the output cache."""
+    if not judges:
+        raise ValueError("At least one judge must be specified for summarization.")
+    engine = PubmedDB(
+        path=db_path, vcf_paths=[], species=species, max_publications=50
+    ).engine
+    ocache = Cache(output_cache) if output_cache else None
+    if ocache:
+        ocache.deploy()
+    return engine, ocache
+
+
 def summarize_variants(
     db_path: Path,
     vcf_path: Path,
@@ -180,12 +202,9 @@ def summarize_variants(
 ):
     """
     Extracts variant terms from a VCF file, finds related PubMed articles from the database,
-    summarizes them using the given summarizer, and optionally saves the summaries to a CSV file.
+    summarizes them using the given summarizer, and writes the annotated VCF.
     """
-    if not judges:
-        raise ValueError("At least one judge must be specified for summarization.")
-    db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
-    engine = db.engine
+    engine, ocache = _prepare(db_path, species, judges, output_cache)
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
@@ -203,11 +222,6 @@ def summarize_variants(
         vcf_out = Writer(out_path, vcf)
         hgvsp_index = get_annotation_field_index(vcf, "HGVSp")
         gene_index = get_annotation_field_index(vcf, "SYMBOL")
-        if output_cache:
-            ocache = Cache(output_cache)
-            ocache.deploy()
-        else:
-            ocache = None
         for i, record in enumerate(vcf, start=1):
             logging.info(f"Processing vcf record {i}/{total_record}")
             bioconcepts = extract_bioconcept_from_record(
@@ -244,3 +258,77 @@ def summarize_variants(
             record.INFO["ANN"] = ",".join(ann)
             vcf_out.write_record(record)
         vcf_out.close()
+
+
+def summarize_variants_table(
+    db_path: Path,
+    table_path: Path,
+    summarizer: PubmedSummarizer,
+    species: str,
+    judges: List[str],
+    gene_column: str,
+    variant_column: str,
+    out_path: Path,
+    output_cache: Optional[Path] = None,
+    delimiter: Optional[str] = None,
+):
+    """
+    Reads a TSV/CSV of gene + variant rows, summarizes related PubMed articles per
+    row, and writes the input table back with appended varpubs columns.
+    """
+    engine, ocache = _prepare(db_path, species, judges, output_cache)
+    delimiter = delimiter or table_delimiter(table_path)
+    score_columns = [f"varpubs_{judge}_score" for judge in judges]
+    new_columns = ["varpubs_summary", "varpubs_pmids", *score_columns]
+
+    records: Dict[str, TranscriptRecord] = {}
+    matched = 0
+    total = 0
+    with (
+        Session(engine) as session,
+        open(table_path, newline="") as infile,
+        open(out_path, "w", newline="") as outfile,
+    ):
+        reader = csv.DictReader(infile, delimiter=delimiter)
+        columns = reader.fieldnames or []
+        missing = [c for c in (gene_column, variant_column) if c not in columns]
+        if missing:
+            raise ValueError(
+                f"Column(s) {missing} not found in {table_path}. Available: {columns}"
+            )
+        clashing = [c for c in new_columns if c in columns]
+        if clashing:
+            raise ValueError(
+                f"Input table already contains output column(s) {clashing}"
+            )
+
+        writer = csv.DictWriter(
+            outfile,
+            fieldnames=[*columns, *new_columns],
+            delimiter=delimiter,
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for row in reader:
+            total += 1
+            bioconcept = table_row_to_bioconcept(
+                row[gene_column], row[variant_column], species
+            )
+            if bioconcept not in records:
+                records[bioconcept] = process_bioconcept(
+                    bioconcept, session, summarizer, judges, ocache
+                )
+            transcript = records[bioconcept]
+            if transcript.pmids:
+                matched += 1
+            row["varpubs_summary"] = transcript.summary
+            row["varpubs_pmids"] = transcript.join_pmids()
+            for judge, column in zip(judges, score_columns):
+                row[column] = transcript.mean_score(judge)
+            writer.writerow(row)
+
+    logging.info(f"{matched}/{total} table rows matched the database")
+    if total and not matched:
+        logging.warning(
+            "No table rows matched the database. Did you run deploy-db over this table?"
+        )

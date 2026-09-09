@@ -7,7 +7,10 @@ import sqlalchemy
 from pubgator import PubGator
 from sqlmodel import Field, Integer, Session, SQLModel, select
 
-from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
+from varpubs.hgvs_extractor import (
+    extract_bioconcepts_from_table,
+    extract_hgvsp_from_vcf,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +41,15 @@ class PubmedDB:
     vcf_paths: Iterable[Path]
     species: str
     max_publications: int
+    table_paths: Iterable[Path] = ()
+    gene_column: str = "gene"
+    variant_column: str = "variant"
     _engine: Optional[sqlalchemy.engine.base.Engine] = field(init=False, default=None)
 
     def deploy(self) -> None:
         """Create/update DB, fetch articles, and populate term-to-PMID links."""
+        if not self.vcf_paths and not self.table_paths:
+            raise ValueError("Provide at least one VCF or table input.")
         logger.info(f"Deploying database at: {self.path}")
         logger.info(f"Input VCF paths: {[str(p) for p in self.vcf_paths]}")
 
@@ -53,6 +61,15 @@ class PubmedDB:
         bioconcepts = set()
         for vcf_path in self.vcf_paths:
             bioconcepts.update(extract_hgvsp_from_vcf(str(vcf_path), self.species))
+        for table_path in self.table_paths:
+            bioconcepts.update(
+                extract_bioconcepts_from_table(
+                    str(table_path),
+                    self.gene_column,
+                    self.variant_column,
+                    self.species,
+                )
+            )
 
         for bioconcept in bioconcepts:
             # Consider adding parameter to manually set max_ret

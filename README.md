@@ -32,6 +32,9 @@ varpubs deploy-db \
   --vcf-paths variants.vcf.gz other.vcf.gz \
 ```
 
+The database can also (or instead) be built from a gene + variant TSV/CSV via
+`--csv-paths variants.tsv` (see the table columns below).
+
 ### 2. Summarize variant-associated articles
 ```bash
 varpubs summarize-variants \
@@ -48,6 +51,26 @@ varpubs summarize-variants \
 ```
 
 Each LLM call starts with a budget of `--max-new-tokens` (default 500) and doubles it on every `--retries` attempt (default 3) if the response was cut off. Responses still truncated after the last attempt are discarded. Model reasoning is disabled by default and can be enabled via `--enable-thinking true`.
+
+Instead of `--vcf-path`, pass `--csv-path` a gene + variant TSV/CSV. The input table is
+written back unchanged with appended `varpubs_summary`, `varpubs_pmids` and
+`varpubs_<judge>_score` columns:
+
+```bash
+varpubs summarize-variants \
+  --db-path pubmed.duckdb \
+  --csv-path variants.tsv \
+  --gene-column gene \
+  --variant-column variant \
+  --llm-url https://your-llm-endpoint \
+  --judges "therapy relevance" \
+  --cache cache.duckdb \
+  --output summaries.tsv
+```
+
+The delimiter is inferred from the file extension (`.csv` → comma, otherwise tab) and can be
+overridden with `--delimiter`. The variant column accepts HGVS protein changes in one- or
+three-letter form, with or without the `p.` prefix (e.g. `p.Arg1748Ter`, `p.R1748*`, `R1748*`).
 
 ### 3. Merge or update caches
 ```bash
