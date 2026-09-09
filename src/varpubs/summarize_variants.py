@@ -1,20 +1,20 @@
 import logging
-from statistics import mean
-from pathlib import Path
-from typing import List, Optional, Dict, Set
 from dataclasses import dataclass
+from pathlib import Path
+from statistics import mean
+from typing import Dict, List, Optional, Set
 
-from sqlmodel import Session, select
 from cyvcf2 import VCF, Writer
+from sqlmodel import Session, select
 
 from varpubs.cache import Cache, Judge, Summary
-from varpubs.pubmed_db import PubmedArticle, PubmedDB, BioconceptToPMID
-from varpubs.summarize import PubmedSummarizer
 from varpubs.hgvs_extractor import (
     bioconcept_to_hgvsp_gene,
-    get_annotation_field_index,
     extract_bioconcept_from_record,
+    get_annotation_field_index,
 )
+from varpubs.pubmed_db import BioconceptToPMID, PubmedArticle, PubmedDB
+from varpubs.summarize import PubmedSummarizer
 from varpubs.utils import extend_vep_header
 
 

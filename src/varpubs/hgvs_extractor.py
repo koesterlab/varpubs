@@ -1,8 +1,9 @@
 import logging
+from typing import Any, List, Tuple
+
 from cyvcf2 import VCF
-from typing import Tuple, List, Any
-from hgvs.parser import Parser
 from hgvs.exceptions import HGVSParseError
+from hgvs.parser import Parser
 
 logger = logging.getLogger(__name__)
 
