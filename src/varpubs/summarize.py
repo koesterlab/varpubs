@@ -2,6 +2,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass
+from functools import cached_property
 from string import Template
 from typing import Optional
 
@@ -24,15 +25,22 @@ class Settings:
     cache: Optional[Cache] = None
     retries: int = 3
     enable_thinking: bool = False
+    request_retries: int = 8
+    request_timeout: float = 120.0
 
 
 @dataclass
 class PubmedSummarizer:
     settings: Settings
 
-    @property
+    @cached_property
     def client(self) -> OpenAI:
-        return OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
+        return OpenAI(
+            api_key=self.settings.api_key,
+            base_url=self.settings.base_url,
+            max_retries=self.settings.request_retries,
+            timeout=self.settings.request_timeout,
+        )
 
     @property
     def extra_body(self) -> dict:
