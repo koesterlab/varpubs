@@ -1,12 +1,13 @@
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Iterable
-import logging
+from typing import Iterable, Optional
+
 import sqlalchemy
-from sqlmodel import Field, SQLModel, Session, Integer
-from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
-from sqlmodel import select
 from pubgator import PubGator
+from sqlmodel import Field, Integer, Session, SQLModel, select
+
+from varpubs.hgvs_extractor import extract_hgvsp_from_vcf
 
 logger = logging.getLogger(__name__)
 

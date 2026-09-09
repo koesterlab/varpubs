@@ -1,12 +1,14 @@
-from dataclasses import dataclass
-from typing import Optional
-from openai import OpenAI
-from string import Template
-from varpubs.pubmed_db import PubmedArticle
-from varpubs.cache import Cache
-import re
-import logging
 import hashlib
+import logging
+import re
+from dataclasses import dataclass
+from string import Template
+from typing import Optional
+
+from openai import OpenAI
+
+from varpubs.cache import Cache
+from varpubs.pubmed_db import PubmedArticle
 
 THINKING = re.compile(r"<think>.*?</think>", re.DOTALL)
 

@@ -1,7 +1,9 @@
+import os
+
+import pytest
+
 from varpubs.pubmed_db import PubmedArticle
 from varpubs.summarize import PubmedSummarizer, Settings
-import os
-import pytest
 
 ARTICLE = article = PubmedArticle(
     pmid=12345678,
