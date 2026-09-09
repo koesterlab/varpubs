@@ -1,5 +1,7 @@
+import csv
 import logging
-from typing import Any, List, Tuple
+from pathlib import Path
+from typing import Any, List, Optional, Tuple
 
 from cyvcf2 import VCF
 from hgvs.exceptions import HGVSParseError
@@ -72,3 +74,36 @@ def hgvsp_gene_to_bioconcept(hgvsp: str, gene: str, species: str) -> str:
 def bioconcept_to_hgvsp_gene(bioconcept: str) -> Tuple[str, str]:
     hgvsp, gene = bioconcept.split("_")[1:3]
     return hgvsp, gene
+
+
+def table_row_to_bioconcept(gene: str, variant: str, species: str) -> str:
+    # The variant column is expected to already hold a one-letter HGVS protein
+    # change (e.g. p.N331I). Strip surrounding whitespace (including non-breaking
+    # spaces from spreadsheet exports) so the bioconcept matches the database.
+    return hgvsp_gene_to_bioconcept(variant.strip(), gene.strip(), species)
+
+
+def table_delimiter(path: Path) -> str:
+    return "," if path.suffix.lower() == ".csv" else "\t"
+
+
+def extract_bioconcepts_from_table(
+    table_path: str,
+    gene_column: str,
+    variant_column: str,
+    species: str,
+    delimiter: Optional[str] = None,
+) -> set[str]:
+    delimiter = delimiter or table_delimiter(Path(table_path))
+    with open(table_path, newline="") as infile:
+        reader = csv.DictReader(infile, delimiter=delimiter)
+        columns = reader.fieldnames or []
+        missing = [c for c in (gene_column, variant_column) if c not in columns]
+        if missing:
+            raise ValueError(
+                f"Column(s) {missing} not found in {table_path}. Available: {columns}"
+            )
+        return {
+            table_row_to_bioconcept(row[gene_column], row[variant_column], species)
+            for row in reader
+        }

@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
@@ -18,15 +18,21 @@ class DeployDBArgs:
     Command-line arguments for deploying the PubMed variant database.
 
     - db_path: Path to the DuckDB database file to be created or updated.
-    - vcf_paths: List of VCF files containing variant information.
+    - vcf_paths: VCF files containing variant information.
+    - csv_paths: TSV/CSV files with gene and variant columns.
     - species: Species for variant annotation (default: human).
     - max_publications: Maximum number of publications to retrieve per variant (default: 50).
+    - gene_column: Name of the gene column in table inputs (default: gene).
+    - variant_column: Name of the variant column in table inputs (default: variant).
     """
 
     db_path: Path
-    vcf_paths: List[Path]
+    vcf_paths: List[Path] = field(default_factory=list)
+    csv_paths: List[Path] = field(default_factory=list)
     species: str = "human"
     max_publications: int = 50
+    gene_column: str = "gene"
+    variant_column: str = "variant"
 
 
 @dataclass
@@ -34,16 +40,22 @@ class SummarizeArgs:
     """
     Command-line arguments for summarizing PubMed articles related to variants.
 
+    Exactly one of --vcf-path or --csv-path must be given.
+
     - db_path: Path to the existing DuckDB database file.
-    - vcf_path: A single annotated VCF file with variant terms.
-    - output: Path to save the final variant summary file (bcf).
-    - cache: Path to cache file to look up summary results instead of LLM usage
-    - api_key: Hugging Face API token for model access.
-    - judges: List of judges for ranking articles (e.g., "therapy relevance")
-    - llm_url: Base URL for LLM API (Must follow the openai API format)
+    - vcf_path: An annotated VCF file with variant terms.
+    - csv_path: A TSV/CSV file with a gene and a variant column.
+    - output: Path to save the annotated output.
+    - cache: Path to cache file to look up summary results instead of LLM usage.
+    - llm_url: Base URL for LLM API (must follow the OpenAI API format).
+    - judges: List of judges for ranking articles (e.g. "therapy relevance").
+    - gene_column: Name of the gene column in table input (default: gene).
+    - variant_column: Name of the variant column in table input (default: variant).
+    - delimiter: Table field delimiter (default: inferred from the file extension).
     - species: Species for variant annotation (default: human).
     - model: The LLM model used for summarization (default: medgemma-27b-it).
     - role: The professional role or perspective the LLM should take (default: physician).
+    - api_key: API token for model access.
     - output_cache: Optional path to save the cache file for storing new summary results.
     - max_new_tokens: Token budget for the first attempt of each LLM call (default: 500).
     - retries: Attempts per LLM call, doubling the token budget each time (default: 3).
@@ -51,11 +63,15 @@ class SummarizeArgs:
     """
 
     db_path: Path
-    vcf_path: Path
     output: Path
     cache: Optional[Path]
     llm_url: str
     judges: List[str]
+    vcf_path: Optional[Path] = None
+    csv_path: Optional[Path] = None
+    gene_column: str = "gene"
+    variant_column: str = "variant"
+    delimiter: Optional[str] = None
     species: str = "human"
     model: str = "medgemma-27b-it"
     role: str = "physician"
@@ -64,6 +80,22 @@ class SummarizeArgs:
     max_new_tokens: int = 500
     retries: int = 3
     enable_thinking: bool = False
+
+
+def build_summarizer(args: SummarizeArgs) -> PubmedSummarizer:
+    cache = Cache(args.cache) if args.cache else None
+    return PubmedSummarizer(
+        settings=Settings(
+            api_key=args.api_key or "",
+            model=args.model,
+            base_url=args.llm_url,
+            role=args.role,
+            cache=cache,
+            max_new_tokens=args.max_new_tokens,
+            retries=args.retries,
+            enable_thinking=args.enable_thinking,
+        )
+    )
 
 
 @dataclass
@@ -111,7 +143,7 @@ def main():
 
     summarize_parser = subparsers.add_parser(
         "summarize-variants",
-        help="Summarize variants using LLM",
+        help="Summarize variants from a VCF or gene + variant TSV/CSV using an LLM",
         add_option_string_dash_variants=DashVariant.UNDERSCORE_AND_DASH,
     )
     summarize_parser.add_arguments(SummarizeArgs, dest="args")
@@ -136,38 +168,46 @@ def main():
         db = PubmedDB(
             path=args.args.db_path,
             vcf_paths=args.args.vcf_paths,
+            table_paths=args.args.csv_paths,
             species=args.args.species,
             max_publications=args.args.max_publications,
+            gene_column=args.args.gene_column,
+            variant_column=args.args.variant_column,
         )
         db.deploy()
 
     elif args.command == "summarize-variants":
-        from varpubs.summarize_variants import summarize_variants
+        a = args.args
+        if bool(a.vcf_path) == bool(a.csv_path):
+            parser.error("Pass exactly one of --vcf-path or --csv-path.")
+        summarizer = build_summarizer(a)
+        if a.vcf_path:
+            from varpubs.summarize_variants import summarize_variants
 
-        cache = Cache(args.args.cache) if args.args.cache else None
-
-        summarizer = PubmedSummarizer(
-            settings=Settings(
-                api_key=args.args.api_key,
-                model=args.args.model,
-                base_url=args.args.llm_url,
-                role=args.args.role,
-                cache=cache,
-                max_new_tokens=args.args.max_new_tokens,
-                retries=args.args.retries,
-                enable_thinking=args.args.enable_thinking,
+            summarize_variants(
+                db_path=a.db_path,
+                vcf_path=a.vcf_path,
+                summarizer=summarizer,
+                judges=a.judges,
+                species=a.species,
+                out_path=a.output,
+                output_cache=a.output_cache,
             )
-        )
+        else:
+            from varpubs.summarize_variants import summarize_variants_table
 
-        summarize_variants(
-            db_path=args.args.db_path,
-            vcf_path=args.args.vcf_path,
-            summarizer=summarizer,
-            judges=args.args.judges,
-            species=args.args.species,
-            out_path=args.args.output,
-            output_cache=args.args.output_cache,
-        )
+            summarize_variants_table(
+                db_path=a.db_path,
+                table_path=a.csv_path,
+                summarizer=summarizer,
+                species=a.species,
+                judges=a.judges,
+                gene_column=a.gene_column,
+                variant_column=a.variant_column,
+                out_path=a.output,
+                output_cache=a.output_cache,
+                delimiter=a.delimiter,
+            )
 
     elif args.command == "update-cache":
         cache = Cache(args.args.output)

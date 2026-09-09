@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 from cyvcf2 import VCF
@@ -5,7 +6,11 @@ from sqlmodel import Session
 
 from varpubs.pubmed_db import BioconceptToPMID, PubmedArticle, PubmedDB
 from varpubs.summarize import PubmedSummarizer, Settings
-from varpubs.summarize_variants import process_bioconcept, summarize_variants
+from varpubs.summarize_variants import (
+    process_bioconcept,
+    summarize_variants,
+    summarize_variants_table,
+)
 
 JUDGES = ["therapy related", "oncogenicity"]
 
@@ -86,3 +91,50 @@ def test_process_bioconcept_summarizes_and_judges(tmp_path):
     assert record.judges == [{"therapy related": 4}]
     assert record.mean_score("therapy related") == "4"
     assert record.summary.startswith("therapy related:")
+
+
+def test_summarize_variants_table(tmp_path):
+    """A gene + variant table is annotated in place: input columns are preserved
+    and the varpubs columns are appended, with mapped rows summarized and unmapped
+    rows left empty."""
+    db = PubmedDB(
+        path=tmp_path / "db.duckdb", vcf_paths=[], species="human", max_publications=50
+    )
+    db.create_tables()
+    with Session(db.engine) as session:
+        session.add(
+            PubmedArticle(
+                pmid=1, title="t", abstract="a", authors="x", journal="j", doi="d"
+            )
+        )
+        session.add(BioconceptToPMID(bioconcept="@VARIANT_p.R1748*_NF1_human", pmid=1))
+        session.commit()
+    db.engine.dispose()  # release the DuckDB file before the pipeline reopens it
+
+    table = tmp_path / "in.tsv"
+    table.write_text(
+        "gene\tvariant\tnote\nNF1\tp.R1748*\tkeep me\nTP53\tp.R175H\tno lit\n"
+    )
+    out_path = tmp_path / "out.tsv"
+    summarize_variants_table(
+        db_path=tmp_path / "db.duckdb",
+        table_path=table,
+        summarizer=StubSummarizer(Settings(api_key="", role="physician")),
+        species="human",
+        judges=["therapy related"],
+        gene_column="gene",
+        variant_column="variant",
+        out_path=out_path,
+    )
+
+    with open(out_path, newline="") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+
+    assert [r["note"] for r in rows] == ["keep me", "no lit"]  # passthrough preserved
+    mapped, unmapped = rows
+    assert mapped["varpubs_pmids"] == "1"
+    assert mapped["varpubs_therapy related_score"] == "4"
+    assert mapped["varpubs_summary"].startswith("therapy related:")
+    assert "\n" in mapped["varpubs_summary"]  # multi-line cell round-trips
+    assert unmapped["varpubs_pmids"] == ""
+    assert unmapped["varpubs_summary"] == ""
