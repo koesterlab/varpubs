@@ -37,6 +37,138 @@ class TranscriptRecord:
             return ""
 
 
+def process_bioconcept(
+    bioconcept: str,
+    session: Session,
+    summarizer: PubmedSummarizer,
+    judges: List[str],
+    ocache: Optional[Cache],
+) -> TranscriptRecord:
+    """
+    Finds PubMed articles related to a single bioconcept, summarizes and judges them,
+    and returns the resulting per-transcript record. Independent of the input format.
+    """
+    cache = summarizer.settings.cache
+    judgements: List[Dict] = []
+    summaries = {}
+    mappings = session.exec(
+        select(BioconceptToPMID).where(BioconceptToPMID.bioconcept == bioconcept)
+    ).all()
+    # Skip synonymous variants ("=" not in bioconcept) and variants without an hgvsp annotation while still creating a TranscriptRecord per transcript
+    # VARIANT__ checks whether f"@VARIANT_{hgvsp}..." actually contains an hgvsp value
+    pmids = (
+        set(m.pmid for m in mappings)
+        if "=" not in bioconcept and "VARIANT__" not in bioconcept
+        else set()
+    )
+    if pmids:
+        logging.info(f"Summarizing abstracts for: {bioconcept}")
+
+    for pmid in pmids:
+        article = session.exec(
+            select(PubmedArticle).where(PubmedArticle.pmid == pmid)
+        ).first()
+        if not article:
+            continue
+
+        if cache:
+            cached_summary = cache.lookup_summary(
+                bioconcept,
+                pmid,
+                summarizer.settings.model,
+                summarizer.summary_prompt_hash(),
+            )
+        elif ocache:
+            cached_summary = ocache.lookup_summary(
+                bioconcept,
+                pmid,
+                summarizer.settings.model,
+                summarizer.summary_prompt_hash(),
+            )
+        else:
+            cached_summary = None
+
+        hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
+        if cached_summary:
+            summary_text = cached_summary.summary
+        else:
+            logging.info(
+                f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
+            )
+            summary_text = summarizer.summarize_article(article, f"{gene} {hgvsp}")
+
+        scores: Dict[str, int] = {}
+        for judge in judges:
+            score = (
+                cache.lookup_judge(
+                    bioconcept,
+                    pmid,
+                    summarizer.settings.model,
+                    judge,
+                    summarizer.judge_prompt_hash(),
+                )
+                if cache
+                else None
+            )
+            if not score:
+                score = summarizer.judge(article, judge)
+                if score:
+                    judgements.append(
+                        Judge(
+                            term=bioconcept,
+                            pmid=pmid,
+                            model=summarizer.settings.model,
+                            judge=judge,
+                            score=score,
+                            prompt_hash=summarizer.judge_prompt_hash(),
+                        ).model_dump()
+                    )
+            scores[judge] = score or 1
+        summaries[pmid] = {
+            "article": article,
+            "summary": summary_text,
+            "scores": scores,
+            "term": bioconcept,
+        }
+    judge_scores: List[Dict[str, int]] = [data["scores"] for data in summaries.values()]
+
+    hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
+    final_summary = ""
+    for judge in judges:
+        relevant_summaries = [
+            (data["article"], data["summary"])
+            for data in summaries.values()
+            if data["scores"].get(judge) > 1
+        ]
+        if not relevant_summaries:
+            continue
+        judge_term_summary = summarizer.summarize(
+            relevant_summaries, f"{gene} {hgvs}", judge
+        )
+        final_summary += f"{judge}:\n\n{judge_term_summary}\n\n"
+
+    transcript_record = TranscriptRecord(
+        pmids=pmids,
+        summary=final_summary.replace(",", "%2C"),
+        judges=judge_scores,
+    )
+    if ocache:
+        s: List[Summary] = [
+            Summary(
+                term=data["term"],
+                pmid=pmid,
+                model=summarizer.settings.model,
+                summary=data["summary"],
+                prompt_hash=summarizer.summary_prompt_hash(),
+            )
+            for pmid, data in summaries.items()
+            if data["summary"]
+        ]
+        ocache.write_summaries(s)
+        ocache.write_judges([Judge(**j) for j in judgements])
+    return transcript_record
+
+
 def summarize_variants(
     db_path: Path,
     vcf_path: Path,
@@ -54,7 +186,6 @@ def summarize_variants(
         raise ValueError("At least one judge must be specified for summarization.")
     db = PubmedDB(path=db_path, vcf_paths=[], species=species, max_publications=50)
     engine = db.engine
-    cache = summarizer.settings.cache
 
     with Session(engine) as session:
         vcf = VCF(vcf_path)
@@ -84,130 +215,10 @@ def summarize_variants(
             )
             transcript_records: Dict[str, TranscriptRecord] = {}
             for bioconcept in bioconcepts:
-                judgements: List[Dict] = []
-                summaries = {}
-                mappings = session.exec(
-                    select(BioconceptToPMID).where(
-                        BioconceptToPMID.bioconcept == bioconcept
+                if bioconcept not in transcript_records:
+                    transcript_records[bioconcept] = process_bioconcept(
+                        bioconcept, session, summarizer, judges, ocache
                     )
-                ).all()
-                # Skip synonymous variants ("=" not in bioconcept) and variants without an hgvsp annotation while still creating a TranscriptRecord per transcript
-                # VARIANT__ checks whether f"@VARIANT_{hgvsp}..." actually contains an hgvsp value
-                pmids = (
-                    set(m.pmid for m in mappings)
-                    if "=" not in bioconcept and "VARIANT__" not in bioconcept
-                    else set()
-                )
-                if not transcript_records.get(bioconcept):
-                    if pmids:
-                        logging.info(f"Summarizing abstracts for: {bioconcept}")
-
-                    for pmid in pmids:
-                        article = session.exec(
-                            select(PubmedArticle).where(PubmedArticle.pmid == pmid)
-                        ).first()
-                        if not article:
-                            continue
-
-                        if cache:
-                            cached_summary = cache.lookup_summary(
-                                bioconcept,
-                                pmid,
-                                summarizer.settings.model,
-                                summarizer.summary_prompt_hash(),
-                            )
-                        elif ocache:
-                            cached_summary = ocache.lookup_summary(
-                                bioconcept,
-                                pmid,
-                                summarizer.settings.model,
-                                summarizer.summary_prompt_hash(),
-                            )
-                        else:
-                            cached_summary = None
-
-                        hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                        if cached_summary:
-                            summary_text = cached_summary.summary
-                        else:
-                            logging.info(
-                                f"No summary cache entry found for {bioconcept} (pmid: {pmid})"
-                            )
-                            summary_text = summarizer.summarize_article(
-                                article, f"{gene} {hgvsp}"
-                            )
-
-                        scores: Dict[str, int] = {}
-                        for judge in judges:
-                            score = (
-                                cache.lookup_judge(
-                                    bioconcept,
-                                    pmid,
-                                    summarizer.settings.model,
-                                    judge,
-                                    summarizer.judge_prompt_hash(),
-                                )
-                                if cache
-                                else None
-                            )
-                            if not score:
-                                score = summarizer.judge(article, judge)
-                                if score:
-                                    judgements.append(
-                                        Judge(
-                                            term=bioconcept,
-                                            pmid=pmid,
-                                            model=summarizer.settings.model,
-                                            judge=judge,
-                                            score=score,
-                                            prompt_hash=summarizer.judge_prompt_hash(),
-                                        ).model_dump()
-                                    )
-                            scores[judge] = score or 1
-                        summaries[pmid] = {
-                            "article": article,
-                            "summary": summary_text,
-                            "scores": scores,
-                            "term": bioconcept,
-                        }
-                    judge_scores: List[Dict[str, int]] = [
-                        data["scores"] for data in summaries.values()
-                    ]
-
-                    hgvs, gene = bioconcept_to_hgvsp_gene(bioconcept)
-                    final_summary = ""
-                    for judge in judges:
-                        relevant_summaries = [
-                            (data["article"], data["summary"])
-                            for data in summaries.values()
-                            if data["scores"].get(judge) > 1
-                        ]
-                        if not relevant_summaries:
-                            continue
-                        judge_term_summary = summarizer.summarize(
-                            relevant_summaries, f"{gene} {hgvs}", judge
-                        )
-                        final_summary += f"{judge}:\n\n{judge_term_summary}\n\n"
-
-                    transcript_records[bioconcept] = TranscriptRecord(
-                        pmids=pmids,
-                        summary=final_summary.replace(",", "%2C"),
-                        judges=judge_scores,
-                    )
-                    if ocache:
-                        s: List[Summary] = [
-                            Summary(
-                                term=data["term"],
-                                pmid=pmid,
-                                model=summarizer.settings.model,
-                                summary=data["summary"],
-                                prompt_hash=summarizer.summary_prompt_hash(),
-                            )
-                            for pmid, data in summaries.items()
-                            if data["summary"]
-                        ]
-                        ocache.write_summaries(s)
-                        ocache.write_judges([Judge(**j) for j in judgements])
 
             transcript_infos: List[TranscriptRecord] = [
                 transcript_records[bioconcept] for bioconcept in bioconcepts
