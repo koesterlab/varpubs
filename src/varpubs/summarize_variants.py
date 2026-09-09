@@ -149,7 +149,7 @@ def process_bioconcept(
 
     transcript_record = TranscriptRecord(
         pmids=pmids,
-        summary=final_summary.replace(",", "%2C"),
+        summary=final_summary,
         judges=judge_scores,
     )
     if ocache:
@@ -230,7 +230,11 @@ def summarize_variants(
             for transcript_info, ann_str in zip(
                 transcript_infos, transcript_annotations
             ):
-                transcript_annotation = f"{ann_str}|{transcript_info.summary}|{transcript_info.join_pmids()}"
+                # Commas separate transcripts in the ANN field, so encode them
+                summary = transcript_info.summary.replace(",", "%2C")
+                transcript_annotation = (
+                    f"{ann_str}|{summary}|{transcript_info.join_pmids()}"
+                )
                 for judge in judges:
                     transcript_annotation = (
                         f"{transcript_annotation}|{transcript_info.mean_score(judge)}"
