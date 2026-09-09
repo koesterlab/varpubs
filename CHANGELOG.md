@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/koesterlab/varpubs/compare/v1.3.0...v1.4.0) (2026-09-09)
+
+
+### Features
+
+* Retry LLM requests on rate-limit and server errors ([#46](https://github.com/koesterlab/varpubs/issues/46)) ([c575e1c](https://github.com/koesterlab/varpubs/commit/c575e1c06b37afcd8fef1ca064e30978e3d4104a))
+
 ## [1.3.0](https://github.com/koesterlab/varpubs/compare/v1.2.1...v1.3.0) (2026-09-09)
 
 
