@@ -1,7 +1,8 @@
-from cyvcf2 import VCF
 from pathlib import Path
 
-from varpubs.hgvs_extractor import get_annotation_field_index, extract_hgvsp_from_vcf
+from cyvcf2 import VCF
+
+from varpubs.hgvs_extractor import extract_hgvsp_from_vcf, get_annotation_field_index
 
 
 def test_get_annotation_field_index():
