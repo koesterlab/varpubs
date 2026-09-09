@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/koesterlab/varpubs/compare/v1.2.1...v1.3.0) (2026-09-09)
+
+
+### Features
+
+* Summarize and deploy variants from gene + variant tables ([#44](https://github.com/koesterlab/varpubs/issues/44)) ([fb9d52f](https://github.com/koesterlab/varpubs/commit/fb9d52f765919f0b03485980c7dc07c4a5b7802f))
+
 ## [1.2.1](https://github.com/koesterlab/varpubs/compare/v1.2.0...v1.2.1) (2026-07-08)
 
 
