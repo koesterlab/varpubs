@@ -6,6 +6,7 @@ from cyvcf2 import VCF
 from varpubs.hgvs_extractor import (
     extract_bioconcepts_from_table,
     extract_hgvsp_from_vcf,
+    free_text_queries,
     get_annotation_field_index,
     table_row_to_bioconcept,
 )
@@ -32,6 +33,13 @@ def test_extract_bioconcepts_from_table(tmp_path):
         "@VARIANT_p.R1748*_NF1_human",
         "@VARIANT_p.V600E_BRAF_human",
     }
+
+
+def test_free_text_queries():
+    assert free_text_queries("@VARIANT_p.G12S_KRAS_human") == [
+        "KRAS G12S",
+        "KRAS Gly12Ser",
+    ]
 
 
 def test_table_row_to_bioconcept_strips_whitespace():
