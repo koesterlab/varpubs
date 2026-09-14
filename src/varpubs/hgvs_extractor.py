@@ -76,6 +76,17 @@ def bioconcept_to_hgvsp_gene(bioconcept: str) -> Tuple[str, str]:
     return hgvsp, gene
 
 
+def free_text_queries(bioconcept: str) -> List[str]:
+    hgvsp, gene = bioconcept_to_hgvsp_gene(bioconcept)
+    changes = [hgvsp.removeprefix("p.")]
+    try:
+        three = Parser().parse(f"NP_000000.0:{hgvsp}").format(conf={"p_3_letter": True})
+        changes.append(three.split(":")[1].removeprefix("p."))
+    except HGVSParseError:
+        pass
+    return [f"{gene} {change}" for change in changes]
+
+
 def table_row_to_bioconcept(gene: str, variant: str, species: str) -> str:
     # The variant column is expected to already hold a one-letter HGVS protein
     # change (e.g. p.N331I). Strip surrounding whitespace (including non-breaking

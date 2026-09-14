@@ -10,6 +10,7 @@ from sqlmodel import Field, Integer, Session, SQLModel, select
 from varpubs.hgvs_extractor import (
     extract_bioconcepts_from_table,
     extract_hgvsp_from_vcf,
+    free_text_queries,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,8 @@ class PubmedDB:
                     max_ret=self.max_publications,
                     retries=5,
                 )
+                if not publications:
+                    publications = self._search_free_text(pg, bioconcept)
             pmids = [publication.pmid for publication in publications]
             relations[bioconcept] = pmids
 
@@ -118,6 +121,18 @@ class PubmedDB:
 
             session.commit()
             logger.info("Data committed to the database.")
+
+    def _search_free_text(self, pg: PubGator, bioconcept: str) -> list:
+        found = {}
+        for query in free_text_queries(bioconcept):
+            for publication in pg.search(
+                query,
+                sections=["title", "abstract"],
+                max_ret=self.max_publications,
+                retries=5,
+            ):
+                found.setdefault(publication.pmid, publication)
+        return list(found.values())[: self.max_publications]
 
     def create_tables(self) -> None:
         """Create tables if missing; safe to call multiple times."""
