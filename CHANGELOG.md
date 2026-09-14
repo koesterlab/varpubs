@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/koesterlab/varpubs/compare/v1.4.0...v1.5.0) (2026-09-14)
+
+
+### Features
+
+* Fall back to free-text search for variants without bioconcept hits ([#48](https://github.com/koesterlab/varpubs/issues/48)) ([9eafbc2](https://github.com/koesterlab/varpubs/commit/9eafbc2aef61da6e4035de36c5dda82ab483811d))
+
 ## [1.4.0](https://github.com/koesterlab/varpubs/compare/v1.3.0...v1.4.0) (2026-09-09)
 
 
