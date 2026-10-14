@@ -3,7 +3,7 @@ import os
 import pytest
 
 from varpubs.pubmed_db import PubmedArticle
-from varpubs.summarize import PubmedSummarizer, Settings
+from varpubs.summarize import PubmedSummarizer, Settings, unsupported_citations
 
 ARTICLE = article = PubmedArticle(
     pmid=12345678,
@@ -52,6 +52,16 @@ def test_client_uses_request_retries_and_timeout():
     )
     assert summarizer.client.max_retries == 5
     assert summarizer.client.timeout == 42.0
+
+
+def test_unsupported_citations_detects_fabricated_pmids():
+    summary = "- Finding (PMID:12345678).\n- Other (PMID:99999999)."
+    assert unsupported_citations(summary, [12345678]) == {"99999999"}
+
+
+def test_unsupported_citations_empty_when_all_cited_are_sources():
+    summary = "- Finding (PMID:12345678) and (PMID:435346)."
+    assert unsupported_citations(summary, [12345678, 435346]) == set()
 
 
 @skip_if_no_api_key
