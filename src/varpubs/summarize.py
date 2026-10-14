@@ -117,7 +117,8 @@ class PubmedSummarizer:
         pmids = [article.pmid for article, _ in texts]
         for attempt in range(self.settings.retries):
             message = self.complete(
-                input_text, temperature=self.settings.temperature + 0.3 * attempt
+                input_text,
+                temperature=min(self.settings.temperature + 0.3 * attempt, 1.0),
             )
             if message is None:
                 logging.warning(
