@@ -64,6 +64,23 @@ def test_unsupported_citations_empty_when_all_cited_are_sources():
     assert unsupported_citations(summary, [12345678, 435346]) == set()
 
 
+def test_summarize_regenerates_until_citations_are_supported(monkeypatch):
+    summarizer = PubmedSummarizer(Settings(api_key="", role="oncologist"))
+    responses = iter(["- Claim (PMID:999).", f"- Claim (PMID:{ARTICLE.pmid})."])
+    monkeypatch.setattr(summarizer, "complete", lambda *args, **kwargs: next(responses))
+    assert summarizer.summarize([(ARTICLE, "s")], "term", "judge") == (
+        f"- Claim (PMID:{ARTICLE.pmid})."
+    )
+
+
+def test_summarize_discards_when_citations_never_supported(monkeypatch):
+    summarizer = PubmedSummarizer(Settings(api_key="", role="oncologist", retries=2))
+    monkeypatch.setattr(
+        summarizer, "complete", lambda *args, **kwargs: "- Claim (PMID:999)."
+    )
+    assert summarizer.summarize([(ARTICLE, "s")], "term", "judge") == ""
+
+
 @skip_if_no_api_key
 def test_positive_judgment():
     summarizer = PubmedSummarizer(settings())

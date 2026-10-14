@@ -114,19 +114,27 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary bullet points:"
         )
-        message = self.complete(input_text)
-        if message is None:
-            logging.warning("Max token limit reached. Discarding truncated summary.")
-            return ""
-        unsupported = unsupported_citations(
-            message, (article.pmid for article, _ in texts)
-        )
-        if unsupported:
-            logging.warning(
-                f"Summary for {term} ({judge}) cites PMIDs not among its sources: "
-                f"{', '.join(sorted(unsupported))}"
+        pmids = [article.pmid for article, _ in texts]
+        for attempt in range(self.settings.retries):
+            message = self.complete(
+                input_text, temperature=self.settings.temperature + 0.3 * attempt
             )
-        return message
+            if message is None:
+                logging.warning(
+                    "Max token limit reached. Discarding truncated summary."
+                )
+                return ""
+            unsupported = unsupported_citations(message, pmids)
+            if not unsupported:
+                return message
+            logging.info(
+                f"Summary for {term} ({judge}) cites PMIDs not among its sources: "
+                f"{', '.join(sorted(unsupported))}. Regenerating."
+            )
+        logging.warning(
+            f"No summary for {term} ({judge}) without unsupported citations. Discarding."
+        )
+        return ""
 
     def summary_prompt_template(self) -> Template:
         """Return a template for generating a summary prompt."""
