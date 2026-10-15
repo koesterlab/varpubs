@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from functools import cached_property
 from string import Template
-from typing import Optional
+from typing import Iterable, Optional
 
 from openai import OpenAI
 
@@ -12,6 +12,14 @@ from varpubs.cache import Cache
 from varpubs.pubmed_db import PubmedArticle
 
 THINKING = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def unsupported_citations(summary: str, pmids: Iterable[int]) -> set[str]:
+    """Return PMIDs cited in the summary that are not among the given sources."""
+    sources = {str(pmid) for pmid in pmids}
+    return {
+        pmid for pmid in re.findall(r"PMID:\s*(\d+)", summary) if pmid not in sources
+    }
 
 
 @dataclass
@@ -106,11 +114,28 @@ class PubmedSummarizer:
             f"Article summaries:\n{summaries}\n\n"
             "Now write the summary bullet points:"
         )
-        message = self.complete(input_text)
-        if message is None:
-            logging.warning("Max token limit reached. Discarding truncated summary.")
-            return ""
-        return message
+        pmids = [article.pmid for article, _ in texts]
+        for attempt in range(self.settings.retries):
+            message = self.complete(
+                input_text,
+                temperature=min(self.settings.temperature + 0.3 * attempt, 1.0),
+            )
+            if message is None:
+                logging.warning(
+                    "Max token limit reached. Discarding truncated summary."
+                )
+                return ""
+            unsupported = unsupported_citations(message, pmids)
+            if not unsupported:
+                return message
+            logging.info(
+                f"Summary for {term} ({judge}) cites PMIDs not among its sources: "
+                f"{', '.join(sorted(unsupported))}. Regenerating."
+            )
+        logging.warning(
+            f"No summary for {term} ({judge}) without unsupported citations. Discarding."
+        )
+        return ""
 
     def summary_prompt_template(self) -> Template:
         """Return a template for generating a summary prompt."""
