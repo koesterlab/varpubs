@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/koesterlab/varpubs/compare/v1.5.0...v1.6.0) (2026-10-15)
+
+
+### Features
+
+* Regenerate a summary that cites PMIDs outside its sources ([#50](https://github.com/koesterlab/varpubs/issues/50)) ([70e62dc](https://github.com/koesterlab/varpubs/commit/70e62dcb01d78b2a661caed1da4cd05d12df3a25))
+
 ## [1.5.0](https://github.com/koesterlab/varpubs/compare/v1.4.0...v1.5.0) (2026-09-14)
 
 
