@@ -6,7 +6,7 @@ from functools import cached_property
 from string import Template
 from typing import Iterable, Optional
 
-from openai import OpenAI
+from openai import APIConnectionError, OpenAI
 
 from varpubs.cache import Cache
 from varpubs.pubmed_db import PubmedArticle
@@ -71,18 +71,25 @@ class PubmedSummarizer:
     ) -> Optional[str]:
         for retry in range(self.settings.retries):
             budget = max_tokens or self.max_tokens(retry)
-            response = self.client.chat.completions.create(
-                model=self.settings.model,
-                messages=[
-                    {"role": "system", "content": instruction or self.instruction()},
-                    {"role": "user", "content": input_text},
-                ],
-                max_tokens=budget,
-                temperature=self.settings.temperature
-                if temperature is None
-                else temperature,
-                extra_body=self.extra_body,
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.settings.model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": instruction or self.instruction(),
+                        },
+                        {"role": "user", "content": input_text},
+                    ],
+                    max_tokens=budget,
+                    temperature=self.settings.temperature
+                    if temperature is None
+                    else temperature,
+                    extra_body=self.extra_body,
+                )
+            except APIConnectionError as error:
+                logging.warning(f"LLM request failed: {error}")
+                return None
             choice = response.choices[0]
             if choice.finish_reason == "length":
                 logging.info(
@@ -122,7 +129,7 @@ class PubmedSummarizer:
             )
             if message is None:
                 logging.warning(
-                    "Max token limit reached. Discarding truncated summary."
+                    f"No summary for {term} ({judge}) from the LLM. Discarding."
                 )
                 return ""
             unsupported = unsupported_citations(message, pmids)
@@ -166,9 +173,7 @@ class PubmedSummarizer:
 
         message = self.complete(input_text)
         if message is None:
-            logging.warning(
-                f"Truncated summary for article {article.pmid}. Discarding."
-            )
+            logging.warning(f"No summary for article {article.pmid}. Discarding.")
             return ""
         return message
 

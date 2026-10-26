@@ -1,6 +1,9 @@
 import os
+from types import SimpleNamespace
 
+import httpx
 import pytest
+from openai import APITimeoutError
 
 from varpubs.pubmed_db import PubmedArticle
 from varpubs.summarize import PubmedSummarizer, Settings, unsupported_citations
@@ -62,6 +65,21 @@ def test_unsupported_citations_detects_fabricated_pmids():
 def test_unsupported_citations_empty_when_all_cited_are_sources():
     summary = "- Finding (PMID:12345678) and (PMID:435346)."
     assert unsupported_citations(summary, [12345678, 435346]) == set()
+
+
+def test_complete_returns_none_on_timeout(monkeypatch):
+    summarizer = PubmedSummarizer(Settings(api_key="", role="oncologist"))
+
+    def raise_timeout(**kwargs):
+        raise APITimeoutError(request=httpx.Request("POST", "http://localhost"))
+
+    completions = SimpleNamespace(create=raise_timeout)
+    monkeypatch.setattr(
+        summarizer,
+        "client",
+        SimpleNamespace(chat=SimpleNamespace(completions=completions)),
+    )
+    assert summarizer.complete("hello") is None
 
 
 def test_summarize_regenerates_until_citations_are_supported(monkeypatch):
