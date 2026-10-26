@@ -97,6 +97,9 @@ class PubmedSummarizer:
                 )
                 continue
             return THINKING.sub("", choice.message.content or "").strip()
+        logging.warning(
+            f"LLM response still truncated after {self.settings.retries} attempts."
+        )
         return None
 
     def summarize(
